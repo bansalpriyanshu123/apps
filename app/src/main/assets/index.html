@@ -248,12 +248,12 @@
   </div>
 
   <div class="ctl">
-    <label class="check"><input type="checkbox" id="cont"> Keep reading</label>
+    <label class="check" title="Keep reading line after line until you press Stop"><input type="checkbox" id="cont"> Continue reading</label>
   </div>
 
   <div class="ctl">
     <button class="btn" id="stopBtn" disabled>Stop</button>
-    <button class="btn icon" id="settingsBtn" title="Gemini settings" aria-label="Settings">⚙</button>
+    <button class="btn icon" id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
   </div>
 </header>
 
@@ -283,9 +283,21 @@
 </div>
 
 <div class="scrim" id="scrim"></div>
-<aside class="sheet" id="sheet" aria-label="Gemini settings">
+<aside class="sheet" id="sheet" aria-label="Settings">
   <button class="btn icon close" id="closeSheet" aria-label="Close">✕</button>
-  <h2>Gemini settings</h2>
+  <h2>Settings</h2>
+  <p class="sub">Reading behaviour, and Gemini for PDFs whose text comes out garbled.</p>
+
+  <div class="field">
+    <label for="contMode">When I tap a line</label>
+    <select id="contMode">
+      <option value="0">Read only that line</option>
+      <option value="1">Keep reading from there until I press Stop</option>
+    </select>
+    <div class="help">Continuous reading flows across page breaks. The “Continue reading” switch in the toolbar is the same setting.</div>
+  </div>
+
+  <h2 style="font-size:1.05rem;margin-top:26px">Gemini</h2>
   <p class="sub">Gemini looks at each page as a picture and returns the real Hindi text — this fixes PDFs made with old fonts (Kruti Dev, Chanakya…) that come out as “%%% 000”, and it also works for scanned PDFs.</p>
 
   <div class="field">
@@ -338,7 +350,7 @@
   const stopBtn = $('stopBtn'), notice = $('notice'), now = $('now'), nowText = $('nowText'), nowMeta = $('nowMeta');
   const banner = $('banner'), bannerText = $('bannerText'), bannerBtn = $('bannerBtn');
   const settingsBtn = $('settingsBtn'), scrim = $('scrim'), sheet = $('sheet'), closeSheet = $('closeSheet');
-  const apiKeyInput = $('apiKey'), showKey = $('showKey'), ocrModeSel = $('ocrMode'), textModelInput = $('textModel'), ttsModelInput = $('ttsModel');
+  const apiKeyInput = $('apiKey'), showKey = $('showKey'), ocrModeSel = $('ocrMode'), contModeSel = $('contMode'), textModelInput = $('textModel'), ttsModelInput = $('ttsModel');
   const saveSettings = $('saveSettings'), testKey = $('testKey'), clearCache = $('clearCache'), keyStatus = $('keyStatus');
 
   const SAMPLE = 'नमस्ते। यह आवाज़ का नमूना है। आप गति बदल सकते हैं।';
@@ -646,6 +658,7 @@
   /* ---------- settings sheet ---------- */
   function openSheet() {
     apiKeyInput.value = settings.key;
+    contModeSel.value = contChk.checked ? '1' : '0';
     ocrModeSel.value = settings.ocrMode;
     textModelInput.value = settings.textModel;
     ttsModelInput.value = settings.ttsModel;
@@ -665,6 +678,8 @@
   });
   saveSettings.addEventListener('click', () => {
     const hadKey = hasKey();
+    contChk.checked = contModeSel.value === '1';
+    savePref('pvr-cont', contChk.checked ? '1' : '0');
     settings.key = apiKeyInput.value.trim();
     settings.ocrMode = ocrModeSel.value;
     settings.textModel = textModelInput.value.trim() || DEFAULT_TEXT_MODEL;

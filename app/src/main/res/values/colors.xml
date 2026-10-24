@@ -1,0 +1,6 @@
+<resources>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="bg">#FFEEF1F4</color>
+    <color name="accent">#FF0E7C86</color>
+    <color name="icon_bg">#FF0E7C86</color>
+</resources>

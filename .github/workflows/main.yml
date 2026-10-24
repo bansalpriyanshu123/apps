@@ -1,45 +1,39 @@
-name: Build Android APK
+name: Build APK
 
-# Controls when the workflow will run
 on:
   push:
-    branches: [ "main" ] # Triggers on push to the main branch
-  pull_request:
-    branches: [ "main" ] # Triggers on pull requests targeting main
-  workflow_dispatch:      # Allows you to manually trigger this build from the Actions tab
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest # Uses the latest Ubuntu runner provided by GitHub
-
+    runs-on: ubuntu-latest
     steps:
-      # Step 1: Check out the repository code so the runner can access it
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # Step 2: Set up Java JDK (required to run Gradle and build Android apps)
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin' # Highly stable OpenJDK distribution
-          java-version: '17'      # Match this to your project's Java version
+          distribution: temurin
+          java-version: '17'
 
-      # Step 3: Set up the Gradle cache to speed up subsequent builds
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v3
 
-      # Step 4: Make the Gradle wrapper script executable
-      - name: Grant Execute Permission for Gradlew
-        run: chmod +x gradlew
-
-      # Step 5: Build the Debug APK using Gradle
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug
-
-      # Step 6: Upload the generated APK file so you can download it
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
+      - uses: gradle/actions/setup-gradle@v3
         with:
-          name: android-debug-apk
+          gradle-version: '8.7'
+
+      - name: Bundle pdf.js so the app works offline
+        run: |
+          mkdir -p app/src/main/assets/pdfjs
+          curl -fsSL -o app/src/main/assets/pdfjs/pdf.min.js \
+            https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
+          curl -fsSL -o app/src/main/assets/pdfjs/pdf.worker.min.js \
+            https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js
+
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdf-voice-reader-apk
           path: app/build/outputs/apk/debug/app-debug.apk
-

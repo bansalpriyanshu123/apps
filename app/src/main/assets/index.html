@@ -2,7 +2,7 @@
 <html lang="hi">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>PDF Voice Reader · क्लिक करें, सुनें</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mukta:wght@400;500;600;700&display=swap">
 <style>
@@ -61,7 +61,7 @@
     --warn-ink: #F3D9A4;
   }
 
-  html { scroll-padding-top: calc(env(safe-area-inset-top, 0px) + var(--bar-h) + 12px); height: 100%; }
+  html { touch-action: pan-x pan-y; scroll-padding-top: calc(env(safe-area-inset-top, 0px) + var(--bar-h) + 12px); height: 100%; }
   *, *::before, *::after { box-sizing: inherit; }
   body {
     margin: 0;
@@ -86,8 +86,11 @@
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   a { color: var(--accent-ink); }
 
+  /* fixed (not sticky) so the bar stays put when the zoomed document is scrolled sideways; <main> is pushed down by --bar-h */
   .bar {
-    position: sticky;
+    position: fixed;
+    left: 0;
+    right: 0;
     top: env(safe-area-inset-top, 0px);
     z-index: 5;
     background: var(--surface);
@@ -100,7 +103,8 @@
   .brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .brand small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; }
   .ctl { display: flex; align-items: center; gap: 8px; }
-  .btn { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 8px 12px; cursor: pointer; line-height: 1.2; min-height: 38px; }
+  .bar > .ctl:last-child { margin-left: auto; }
+  .btn { white-space: nowrap; border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 8px 12px; cursor: pointer; line-height: 1.2; min-height: 38px; }
   .btn:hover { border-color: var(--accent); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
   .btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
@@ -114,8 +118,18 @@
   .pager input::-webkit-inner-spin-button, .pager input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   select, input[type="text"], input[type="password"] { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 7px 8px; }
 
-  main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 24px 16px 170px; width: 100%; }
-  .stage { width: 100%; max-width: 900px; }
+  main { margin-top: var(--bar-h); flex: 1; display: flex; flex-direction: column; align-items: flex-start; padding: 24px 16px 170px; width: 100%; }
+  .stage { width: 100%; max-width: 900px; margin-inline: auto; }
+  /* zoomed in: the stage grows with the pages so the document scrolls sideways (flex-start keeps the left edge reachable) */
+  .stage.zoomed { max-width: none; width: max-content; min-width: 100%; }
+  .stage.zoomed .banner { max-width: calc(100vw - 32px); position: sticky; left: 16px; }
+  .stage.zoomed .notice { position: sticky; left: 16px; max-width: calc(100vw - 32px); }
+  #pages { transform-origin: 0 0; }
+  .zoombar { position: fixed; right: 10px; top: 50%; transform: translateY(-60%); display: none; flex-direction: column; gap: 6px; z-index: 4; transition: opacity .25s; }
+  .zoombar.show { display: flex; }
+  .zoombar.idle { opacity: .3; }
+  .zoombar .btn { min-width: 46px; padding: 8px 4px; box-shadow: 0 2px 8px rgba(0,0,0,.22); }
+  .zoombar #zoomVal { font-size: .8rem; font-variant-numeric: tabular-nums; }
 
   .empty { border: 2px dashed var(--border); border-radius: 16px; background: var(--surface); padding: 56px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
   .empty.drag { border-color: var(--accent); background: var(--line-hover); }
@@ -153,9 +167,8 @@
   .page-wrap .badge .spin { width: 10px; height: 10px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
   .page-wrap .badge.err { background: var(--danger); }
   @keyframes spin { to { transform: rotate(360deg) } }
-  /* Dark pages: invert the rendered PDF (white paper → black), keep hues roughly right */
+  /* Dark pages: the canvas itself is inverted when rendered (see renderPage); a CSS filter showed nothing in WebView */
   #pages.dark .page-wrap { background: #0b0f14; }
-  #pages.dark .page-wrap canvas { filter: invert(1) hue-rotate(180deg); }
   #pages.dark .page-wrap .num { color: #6b7684; }
   .text-layer { position: absolute; inset: 0; }
   .line { position: absolute; cursor: pointer; border-radius: 3px; border-left: 3px solid transparent; margin-left: -3px; transition: background .12s; }
@@ -177,7 +190,7 @@
   .now .text { flex: 1; font-size: 1.05rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .now .text.idle { color: var(--muted); }
   .now .meta { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
-  .now-ctl { display: flex; align-items: center; gap: 8px; }
+  .now-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
   .now-ctl .btn.round { width: 48px; height: 48px; min-width: 48px; border-radius: 50%; padding: 0; font-size: 1.2rem; }
   .now-ctl select { flex: 1; min-width: 0; max-width: 220px; margin-left: auto; }
   #speedBtn { min-width: 3.9em; font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -221,10 +234,15 @@
   .status-line.ok { color: var(--accent-ink); }
   .status-line.bad { color: var(--danger); }
 
+  @media (max-width: 480px) { .btn .long { display: none; } }
   @media (max-width: 640px) {
     .bar { gap: 8px 10px; padding: 8px 12px; }
     .brand small { display: none; }
-    .btn.long { display: none; }
+    .bar .btn.icon { min-width: 36px; padding: 8px; }
+    .pager input { width: 2.4em; }
+    /* with a PDF open the page controls need the room the title was using */
+    .bar:has(#pagerCtl:not([hidden])) .brand { display: none; }
+    .now-ctl select { flex: 1 1 100%; max-width: none; margin-left: 0; order: 10; }
     main { padding: 14px 8px 170px; }
     #pages { gap: 10px; }
     .now .meta { display: none; }
@@ -244,7 +262,7 @@
   </div>
 
   <div class="ctl">
-    <button class="btn primary" id="openBtn">Open PDF</button>
+    <button class="btn primary" id="openBtn">Open<span class="long"> PDF</span></button>
     <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
     <button class="btn icon" id="darkBtn" aria-pressed="false" title="Dark pages (black background)" aria-label="Dark pages">🌙</button>
     <button class="btn icon" id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
@@ -293,13 +311,19 @@
   </div>
   <div class="now-ctl">
     <button class="btn icon" id="prevSeg" aria-label="Previous sentence" title="Previous sentence">⏮</button>
-    <button class="btn primary round" id="playBtn" aria-label="Play" title="Play / pause">▶</button>
+    <button class="btn primary round" id="playBtn" aria-label="Play" title="Play / pause"></button>
     <button class="btn icon" id="nextSeg" aria-label="Next sentence" title="Next sentence">⏭</button>
     <button class="btn icon" id="stopBtn" aria-label="Stop" title="Stop" disabled>■</button>
     <button class="btn" id="speedBtn" title="Speed">1.0×</button>
     <button class="btn icon" id="contBtn" aria-pressed="false" title="Keep reading until I stop">∞</button>
     <select id="voice" aria-label="Voice"><option value="">Loading voices…</option></select>
   </div>
+</div>
+
+<div class="zoombar" id="zoombar" aria-label="Zoom">
+  <button class="btn icon" id="zoomIn" aria-label="Zoom in" title="Zoom in">+</button>
+  <button class="btn" id="zoomVal" title="Tap to fit the page width">100%</button>
+  <button class="btn icon" id="zoomOut" aria-label="Zoom out" title="Zoom out">&minus;</button>
 </div>
 
 <div class="scrim" id="scrim"></div>
@@ -372,6 +396,7 @@
   const pagerCtl = $('pagerCtl'), pageInput = $('pageInput'), pageTotal = $('pageTotal'), prevBtn = $('prevBtn'), nextBtn = $('nextBtn');
   const voiceSel = $('voice'), speedBtn = $('speedBtn'), contBtn = $('contBtn'), playBtn = $('playBtn');
   const prevSeg = $('prevSeg'), nextSeg = $('nextSeg'), stopBtn = $('stopBtn'), testVoice = $('testVoice');
+  const zoombar = $('zoombar'), zoomIn = $('zoomIn'), zoomOut = $('zoomOut'), zoomVal = $('zoomVal');
   const speedPop = $('speedPop'), speedRange = $('speedRange'), speedVal = $('speedVal'), speedDown = $('speedDown'), speedUp = $('speedUp'), darkBtn = $('darkBtn');
   const notice = $('notice'), now = $('now'), nowText = $('nowText'), nowMeta = $('nowMeta');
   const banner = $('banner'), bannerText = $('bannerText'), bannerBtn = $('bannerBtn');
@@ -380,11 +405,14 @@
   const saveSettings = $('saveSettings'), testKey = $('testKey'), clearCache = $('clearCache'), keyStatus = $('keyStatus');
 
   const SAMPLE = 'नमस्ते। यह आवाज़ का नमूना है। आप गति बदल सकते हैं।';
+  const PLAY_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+  const PAUSE_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
   const IDLE_TEXT = 'Tap any line, or press ▶ to read from this page.';
   const DEFAULT_TEXT_MODEL = 'gemini-3.8-flash';
   const DEFAULT_TTS_MODEL = 'gemini-3.8-flash-tts';
   const GEMINI_VOICES = ['Kore', 'Puck', 'Zephyr', 'Charon', 'Fenrir', 'Leda', 'Aoede', 'Orus'];
   const MIN_RATE = 0.5, MAX_RATE = 2, RATE_STEP = 0.05;
+  const MIN_ZOOM = 0.5, MAX_ZOOM = 3, ZOOM_STEP = 0.25;
   const LAST = Infinity;
   const IN_ANDROID_APP = location.hostname === 'appassets.androidapp.com';
 
@@ -696,11 +724,12 @@
       available: true,
       getVoices() { try { return JSON.parse(N.getVoices() || '[]'); } catch (e) { return []; } },
       onchange(cb) { changeCb = cb; },
-      speak(text, voice, rate, job) {
+      speak(text, voice, rate, job, queue) {
         const id = 'u' + (++n);
         jobs[id] = job;
         isSpeaking = true;
-        N.speak(text, voice ? voice.id : '', rate, id);
+        // queue=true: join the engine's queue instead of cutting the previous sentence (online voices report "done" early)
+        N.speak(text, voice ? voice.id : '', rate, id, !queue);
       },
       cancel() { isSpeaking = false; for (const k in jobs) { jobs[k].cancelled = true; delete jobs[k]; } N.stop(); },
       speaking() { return isSpeaking; },
@@ -718,11 +747,14 @@
   let resumePos = null;   // where ▶ continues after a pause
   let playing = false, playToken = 0, lastBridgePlaying = false;
   let geminiQueue = Promise.resolve();
+  let zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, parseFloat(loadPref('pvr-zoom', '1')) || 1));
 
   function syncBarHeight() {
     document.documentElement.style.setProperty('--bar-h', bar.offsetHeight + 'px');
   }
   syncBarHeight();
+  // the bar is out of the flow now, so keep <main>'s offset in step whenever it changes height
+  if (window.ResizeObserver) new ResizeObserver(syncBarHeight).observe(bar);
 
   // Any speed from 0.5× to 2× in 0.05 steps.
   function setRate(r) {
@@ -737,11 +769,16 @@
   }
   setRate(parseFloat(loadPref('pvr-rate', '1')) || 1);
 
+  let darkPages = false;
   function setDarkPages(on) {
+    darkPages = on;
+    // the toggle darkens the whole app, not just the paper; off goes back to following the system theme
+    if (on) document.documentElement.setAttribute('data-theme', 'dark'); else document.documentElement.removeAttribute('data-theme');
     pagesEl.classList.toggle('dark', on);
     darkBtn.classList.toggle('on', on);
     darkBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
     savePref('pvr-dark', on ? '1' : '0');
+    if (pdfDoc && pages.length) rerenderNearby();
   }
   setDarkPages(loadPref('pvr-dark', '0') === '1');
   darkBtn.addEventListener('click', () => setDarkPages(!pagesEl.classList.contains('dark')));
@@ -901,9 +938,9 @@
     return job;
   }
   function cancelAll() { deviceTts.cancel(); geminiTts.cancel(); }
-  function speakText(text, voice, r, j) {
+  function speakText(text, voice, r, j, queue) {
     if (voice && voice.gemini) geminiTts.speak(text, voice.name, r, j);
-    else if (deviceTts.available) deviceTts.speak(text, voice, r, j);
+    else if (deviceTts.available) deviceTts.speak(text, voice, r, j, queue);
     else if (j.onerror) j.onerror('no speech engine');
   }
 
@@ -941,7 +978,7 @@
   nextSeg.addEventListener('click', () => step(1));
 
   function setPlayState() {
-    playBtn.textContent = playing ? '⏸' : '▶';
+    playBtn.innerHTML = playing ? PAUSE_ICON : PLAY_ICON;
     playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
     now.classList.toggle('playing', playing);
     stopBtn.disabled = !active && !playing && !resumePos;
@@ -1007,12 +1044,14 @@
 
   /* ---------- sentences: lines merged into speakable units ---------- */
   const SENTENCE_END = /[।॥.?!]["'”’)\]]*$/;
+  const LIST_ITEM = /^(?:[•●○▪·*\-–—]\s|\(?[0-9०-९]{1,3}[.)]\s)/;
   function buildSegs(pg) {
     const segs = [];
     let cur = null, prev = null;
     pg.lines.forEach((L, i) => {
       const bigGap = cur && prev && (L.top - (prev.top + prev.height)) > prev.height * 0.9;
-      if (cur && (bigGap || cur.text.length > 280)) { segs.push(cur); cur = null; }
+      // a bullet / numbered item starts its own sentence even when the previous line has no full stop
+      if (cur && (bigGap || LIST_ITEM.test(L.text) || cur.text.length > 280)) { segs.push(cur); cur = null; }
       if (!cur) cur = { text: '', lines: [] };
       cur.text += (cur.text ? ' ' : '') + L.text;
       cur.lines.push(i);
@@ -1072,11 +1111,12 @@
     return null;
   }
 
-  async function speakSeg(p, s) {
+  // auto=true when moving on by itself to the next sentence: don't stop the engine, let it finish its tail.
+  async function speakSeg(p, s, auto) {
     if (!pdfDoc) return;
     const token = ++playToken;
     if (job) job.cancelled = true;
-    cancelAll();
+    if (!auto) cancelAll();
     playing = true;
     setPlayState();
     const pg0 = pages[Math.min(Math.max(p, 1), pdfDoc.numPages) - 1];
@@ -1092,10 +1132,10 @@
     const pg = pages[pos.p - 1];
     const v = selectedVoice();
     const j = newJob(
-      () => { if (token !== playToken) return; if (cont) speakSeg(pos.p, pos.s + 1); else endPlayback(); },
+      () => { if (token !== playToken) return; if (cont) speakSeg(pos.p, pos.s + 1, true); else endPlayback(); },
       (msg) => { if (token !== playToken) return; endPlayback(); setNotice('Speech failed: ' + msg, true); }
     );
-    speakText(pg.segs[pos.s].text, v, rate, j);
+    speakText(pg.segs[pos.s].text, v, rate, j, auto);
     if (v && v.gemini && cont) {
       for (let k = 1; k <= 2; k++) { const nx = pg.segs[pos.s + k]; if (nx) geminiTts.prefetch(nx.text, v.name); }
     }
@@ -1122,6 +1162,8 @@
       pagesEl.style.display = 'flex';
       pagerCtl.hidden = false;
       now.classList.add('show');
+      zoombar.classList.add('show');
+      stage.classList.toggle('zoomed', zoom > 1);
       showIdleText();
       setPlayState();
       pageTotal.textContent = pdfDoc.numPages;
@@ -1151,9 +1193,14 @@
   document.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) openFile(f); });
 
   /* ---------- page layout (continuous scroll, pages loaded lazily) ---------- */
+  // Scale that fits the page to the screen width, times the user's zoom. The width comes from <main>, not the stage,
+  // because the stage itself grows when zoomed in.
   function computeScale(baseWidth) {
-    const stageW = Math.max(280, stage.clientWidth);
-    return Math.min(stageW / baseWidth, 2.5);
+    const mainEl = document.querySelector('main');
+    const cs = getComputedStyle(mainEl);
+    const avail = mainEl.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const fitW = Math.max(280, Math.min(avail, 900));
+    return Math.min(fitW / baseWidth, 2.5) * zoom;
   }
 
   async function buildPages() {
@@ -1170,7 +1217,7 @@
       pages.push({
         num: n, page: n === 1 ? first : null, base, pageLoad: n === 1 ? Promise.resolve(first) : null,
         lines: [], segs: [], pdfLines: null, rendered: false, rendering: null, textReady: null, renderTask: null,
-        geminiState: 'idle', geminiPromise: null, ocr: null, garbled: false, visible: false, dwell: null
+        geminiState: 'idle', geminiPromise: null, ocr: null, garbled: false, damaged: false, visible: false, dwell: null
       });
     }
 
@@ -1236,18 +1283,129 @@
     return pg.pageLoad;
   }
 
+  // New scale: resize every page, rebuild line boxes, redraw the ones near the screen.
+  function relayout() {
+    for (const pg of pages) {
+      sizePage(pg);
+      if (pg.rawItems) { groupLines(pg); applyLines(pg); pg.textLayer.innerHTML = ''; }
+    }
+    rerenderNearby();
+  }
+
+  // Zoom keeping the point under (ax, ay) in the same place on screen.
+  function setZoom(z, ax, ay) {
+    z = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.round(z * 100) / 100));
+    if (ax == null) ax = window.innerWidth / 2;
+    if (ay == null) ay = window.innerHeight * 0.4;
+    if (!pdfDoc || !pages.length) { zoom = z; updateZoomUI(); return; }
+    if (z === zoom) { updateZoomUI(); return; }
+    let anchor = null;
+    for (const pg of pages) {
+      const r = pg.wrap.getBoundingClientRect();
+      if (r.bottom >= ay) { anchor = { pg, fx: r.width ? (ax - r.left) / r.width : 0, fy: r.height ? (ay - r.top) / r.height : 0 }; break; }
+    }
+    zoom = z;
+    savePref('pvr-zoom', String(zoom));
+    stage.classList.toggle('zoomed', zoom > 1);
+    scale = computeScale(pages[0].base.width);
+    relayout();
+    if (anchor) {
+      const r = anchor.pg.wrap.getBoundingClientRect();
+      window.scrollBy(r.left + anchor.fx * r.width - ax, r.top + anchor.fy * r.height - ay);
+    }
+    updateZoomUI();
+    trackScroll();
+  }
+  let zoomIdleTimer = null;
+  function updateZoomUI() {
+    zoomVal.textContent = Math.round(zoom * 100) + '%';
+    zoomOut.disabled = zoom <= MIN_ZOOM + 0.001;
+    zoomIn.disabled = zoom >= MAX_ZOOM - 0.001;
+    stage.classList.toggle('zoomed', zoom > 1);
+    zoombar.classList.remove('idle');
+    clearTimeout(zoomIdleTimer);
+    zoomIdleTimer = setTimeout(() => zoombar.classList.add('idle'), 2500);
+  }
+  zoomIn.addEventListener('click', () => setZoom(zoom + ZOOM_STEP));
+  zoomOut.addEventListener('click', () => setZoom(zoom - ZOOM_STEP));
+  zoomVal.addEventListener('click', () => setZoom(1));
+  window.addEventListener('scroll', () => { if (pdfDoc) updateZoomUI(); }, { passive: true });
+  updateZoomUI();
+
+  // Two-finger pinch: scale the pages live with a CSS transform, then re-render sharply at the new zoom on release.
+  let pinch = null;
+  const touchDist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 2 || !pdfDoc) return;
+    const a = e.touches[0], b = e.touches[1];
+    pinch = { d0: touchDist(a, b) || 1, z0: zoom, k: 1, mx: (a.clientX + b.clientX) / 2, my: (a.clientY + b.clientY) / 2 };
+    const r = pagesEl.getBoundingClientRect();
+    pagesEl.style.transformOrigin = (pinch.mx - r.left) + 'px ' + (pinch.my - r.top) + 'px';
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!pinch || e.touches.length !== 2) return;
+    e.preventDefault();
+    const a = e.touches[0], b = e.touches[1];
+    pinch.k = Math.min(MAX_ZOOM / pinch.z0, Math.max(MIN_ZOOM / pinch.z0, touchDist(a, b) / pinch.d0));
+    pinch.mx = (a.clientX + b.clientX) / 2;
+    pinch.my = (a.clientY + b.clientY) / 2;
+    pagesEl.style.transform = 'scale(' + pinch.k + ')';
+  }, { passive: false });
+  const endPinch = (e) => {
+    if (!pinch || e.touches.length >= 2) return;
+    const p = pinch;
+    pinch = null;
+    pagesEl.style.transform = '';
+    pagesEl.style.transformOrigin = '';
+    if (Math.abs(p.k - 1) > 0.02) setZoom(p.z0 * p.k, p.mx, p.my);
+  };
+  document.addEventListener('touchend', endPinch);
+  document.addEventListener('touchcancel', endPinch);
+  // Ctrl + wheel (desktop browsers) and + / - keys
+  document.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey || !pdfDoc) return;
+    e.preventDefault();
+    setZoom(zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX, e.clientY);
+  }, { passive: false });
+
+  // Re-draw every page near the screen (dark/light switch, resize).
+  function rerenderNearby() {
+    for (const pg of pages) unrenderPage(pg);
+    for (const pg of pages) {
+      const r = pg.wrap.getBoundingClientRect();
+      if (r.bottom > -900 && r.top < window.innerHeight + 900) renderPage(pg).catch(() => {});
+    }
+  }
+
   async function renderPage(pg) {
-    if (pg.rendered || pg.rendering) return pg.rendering;
+    if (pg.rendered) return;
+    // A render is already running (it may have just been cancelled): run again once it ends.
+    if (pg.rendering) { pg.rerun = true; return pg.rendering; }
     pg.rendering = (async () => {
       await loadPage(pg);
       const vp = pg.vp;
-      const dpr = window.devicePixelRatio || 1;
+      // Cap the bitmap size: zoomed-in pages are big and this phone class has little RAM.
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const maxPx = 3200000;
+      if (vp.width * vp.height * dpr * dpr > maxPx) dpr = Math.sqrt(maxPx / (vp.width * vp.height));
       pg.canvas.width = Math.floor(vp.width * dpr);
       pg.canvas.height = Math.floor(vp.height * dpr);
       const ctx = pg.canvas.getContext('2d');
       pg.renderTask = pg.page.render({ canvasContext: ctx, viewport: vp, transform: [dpr, 0, 0, dpr, 0, 0] });
       try {
         await pg.renderTask.promise;
+        if (darkPages) {
+          // white paper -> black, black text -> light grey (difference with white = invert)
+          ctx.save();
+          ctx.setTransform(1, 0, 0, 1, 0, 0);
+          ctx.globalCompositeOperation = 'difference';
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, pg.canvas.width, pg.canvas.height);
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.fillStyle = '#dde2e8';
+          ctx.fillRect(0, 0, pg.canvas.width, pg.canvas.height);
+          ctx.restore();
+        }
         pg.rendered = true;
       } catch (e) {
         if (!(e && e.name === 'RenderingCancelledException')) throw e;
@@ -1257,6 +1415,7 @@
       }
       await ensureText(pg);
       layoutLines(pg);
+      if (pg.rerun) { pg.rerun = false; if (!pg.rendered) await renderPage(pg); }
     })();
     return pg.rendering;
   }
@@ -1302,7 +1461,7 @@
   function needsGemini(pg) {
     if (settings.ocrMode === 'never') return false;
     if (settings.ocrMode === 'always') return true;
-    return pg.garbled || (pg.pdfLines || []).length === 0;
+    return pg.garbled || pg.damaged || (pg.pdfLines || []).length === 0;
   }
 
   const cacheKey = (pg) => 'pvr-ocr:' + pdfId + ':' + pg.num;
@@ -1311,6 +1470,9 @@
   function ensureText(pg, ocr) {
     if (!pg.textReady) {
       pg.textReady = loadPage(pg).then(() => pg.page.getTextContent()).then(async (tc) => {
+        // Some PDFs ship fonts without a proper text map: pdf.js then returns NUL / U+FFFD in place of glyphs
+        // (typically matras such as ि), so the text layer silently drops letters. Gemini reading the page picture fixes it.
+        pg.damaged = tc.items.filter((it) => /[\u0000\uFFFD]/.test(it.str)).length >= 1;
         pg.rawItems = tc.items.filter((it) => it.str && it.str.trim());
         groupLines(pg);
         pg.garbled = looksGarbled(pg.pdfLines);
@@ -1363,12 +1525,16 @@
 
   function updateBanner(force) {
     if (!pdfDoc) return;
-    const anyGarbled = force || pages.some((pg) => pg.pdfLines && (pg.garbled || (pg.rendered && pg.pdfLines.length === 0)) && pg.geminiState !== 'done');
-    if (anyGarbled && !hasKey() && settings.ocrMode !== 'never') {
-      bannerText.textContent = 'The text inside this PDF is garbled or missing (it was probably made with an old Hindi font, or it is a scan). Gemini can read the pages properly — add a free API key to turn it on.';
+    const notDone = (pg) => pg.geminiState !== 'done';
+    const anyGarbled = force || pages.some((pg) => pg.pdfLines && (pg.garbled || (pg.rendered && pg.pdfLines.length === 0)) && notDone(pg));
+    const anyDamaged = pages.some((pg) => pg.pdfLines && pg.damaged && notDone(pg));
+    if ((anyGarbled || anyDamaged) && !hasKey() && settings.ocrMode !== 'never') {
+      bannerText.textContent = anyGarbled
+        ? 'The text inside this PDF is garbled or missing (it was probably made with an old Hindi font, or it is a scan). Gemini can read the pages properly — add a free API key to turn it on.'
+        : 'This PDF’s built-in text is missing some letters and matras, so words will be read wrongly. Gemini can read the pages from the picture instead — add a free API key to turn it on.';
       banner.classList.add('show');
-    } else if (anyGarbled && hasKey() && settings.ocrMode === 'never') {
-      bannerText.textContent = 'This PDF’s text looks garbled. Gemini reading is switched off in settings.';
+    } else if ((anyGarbled || anyDamaged) && hasKey() && settings.ocrMode === 'never') {
+      bannerText.textContent = 'This PDF’s text looks garbled or incomplete. Gemini reading is switched off in settings.';
       banner.classList.add('show');
     } else {
       banner.classList.remove('show');
@@ -1399,7 +1565,7 @@
     const items = pg.rawItems.map((it) => {
       const tx = pdfjsLib.Util.transform(vp.transform, it.transform);
       const h = Math.hypot(tx[2], tx[3]) || 10;
-      return { str: it.str, x: tx[4], y: tx[5], w: (it.width || 0) * vp.scale, h };
+      return { str: it.str.replace(/[\u0000\uFFFD]/g, ''), x: tx[4], y: tx[5], w: (it.width || 0) * vp.scale, h };
     });
     items.sort((a, b) => (a.y - b.y) || (a.x - b.x));
 
@@ -1511,6 +1677,9 @@
     const t = e.target.tagName;
     if (t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA' || e.target.classList.contains('line')) return;
     if (e.key === ' ' && pdfDoc) { e.preventDefault(); togglePlay(); }
+    else if ((e.key === '+' || e.key === '=') && pdfDoc) setZoom(zoom + ZOOM_STEP);
+    else if ((e.key === '-' || e.key === '_') && pdfDoc) setZoom(zoom - ZOOM_STEP);
+    else if (e.key === '0' && pdfDoc) setZoom(1);
     else if (e.key === 'ArrowRight' && pdfDoc) step(1);
     else if (e.key === 'ArrowLeft' && pdfDoc) step(-1);
   });
@@ -1525,17 +1694,11 @@
       const newScale = computeScale(pages[0].base.width);
       if (Math.abs(newScale - scale) < 0.001) return;
       scale = newScale;
-      for (const pg of pages) {
-        unrenderPage(pg);
-        sizePage(pg);
-        if (pg.rawItems) { groupLines(pg); applyLines(pg); pg.textLayer.innerHTML = ''; }
-      }
-      for (const pg of pages) {
-        const r = pg.wrap.getBoundingClientRect();
-        if (r.bottom > -900 && r.top < window.innerHeight + 900) renderPage(pg).catch(() => {});
-      }
+      relayout();
     }, 200);
   });
+
+  setPlayState();
 })();
 </script>
 </body>

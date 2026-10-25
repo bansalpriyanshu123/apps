@@ -187,15 +187,18 @@ class MainActivity : AppCompatActivity() {
         override fun onStart(utteranceId: String?) {}
 
         override fun onDone(utteranceId: String?) {
+            if (utteranceId.orEmpty().endsWith(SILENCE_SUFFIX)) return
             runJs("window.__androidTts && window.__androidTts.onEnd('${utteranceId.orEmpty()}')")
         }
 
         @Deprecated("Deprecated in Java")
         override fun onError(utteranceId: String?) {
+            if (utteranceId.orEmpty().endsWith(SILENCE_SUFFIX)) return
             runJs("window.__androidTts && window.__androidTts.onError('${utteranceId.orEmpty()}', 'error')")
         }
 
         override fun onError(utteranceId: String?, errorCode: Int) {
+            if (utteranceId.orEmpty().endsWith(SILENCE_SUFFIX)) return
             runJs("window.__androidTts && window.__androidTts.onError('${utteranceId.orEmpty()}', 'error $errorCode')")
         }
 
@@ -229,15 +232,29 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
-        fun speak(text: String, voiceId: String, rate: Float, utteranceId: String) {
+        /**
+         * flush=true: a fresh start (tap, ▶, ⏮ ⏭) - drop whatever is playing and begin with a short silence so the
+         * first syllable isn't clipped while the audio route wakes up.
+         * flush=false: the next sentence of continuous reading - queue behind the current one. Online voices report
+         * "done" slightly before the audio ends, and flushing there chopped off the last word.
+         */
+        @JavascriptInterface
+        fun speak(text: String, voiceId: String, rate: Float, utteranceId: String, flush: Boolean) {
             val engine = tts ?: return
             runOnUiThread {
                 val voice = if (voiceId.isNotEmpty()) {
                     try { engine.voices?.firstOrNull { it.name == voiceId } } catch (e: Exception) { null }
                 } else null
-                if (voice != null) engine.voice = voice else engine.language = Locale("hi", "IN")
+                if (voice != null) {
+                    if (engine.voice?.name != voice.name) engine.voice = voice
+                } else engine.language = Locale("hi", "IN")
                 engine.setSpeechRate(rate.coerceIn(0.25f, 3f))
-                engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+                if (flush) {
+                    engine.playSilentUtterance(LEAD_IN_MS, TextToSpeech.QUEUE_FLUSH, utteranceId + SILENCE_SUFFIX)
+                    engine.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                } else {
+                    engine.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                }
             }
         }
 
@@ -276,5 +293,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         /** Virtual host the page is served from; index.html checks for it to know it is inside the app. */
         private const val ASSET_HOST = "appassets.androidapp.com"
+        private const val SILENCE_SUFFIX = ":sil"
+        private const val LEAD_IN_MS = 150L
     }
 }

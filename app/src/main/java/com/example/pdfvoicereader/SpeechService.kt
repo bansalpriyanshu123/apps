@@ -14,11 +14,6 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 
-/** Hook the notification's Pause button uses to reach the page. Set by MainActivity. */
-object PlaybackControl {
-    var onPause: (() -> Unit)? = null
-}
-
 /**
  * Keeps the process (and the WebView that drives line-after-line reading) alive while speech is playing,
  * so reading carries on with the screen off or the app in the background.
@@ -47,7 +42,7 @@ class SpeechService : Service() {
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle(intent?.getStringExtra(EXTRA_TITLE)?.ifBlank { null } ?: "PDF Voice Reader")
-            .setContentText("Reading aloud")
+            .setContentText(intent?.getStringExtra(EXTRA_TEXT)?.ifBlank { null } ?: "Reading aloud")
             .setContentIntent(open)
             .setOngoing(true)
             .setSilent(true)
@@ -85,6 +80,7 @@ class SpeechService : Service() {
     companion object {
         const val ACTION_PAUSE = "com.example.pdfvoicereader.PAUSE"
         const val EXTRA_TITLE = "title"
+        const val EXTRA_TEXT = "text"
         private const val CHANNEL_ID = "reading"
         private const val NOTIFICATION_ID = 1
     }

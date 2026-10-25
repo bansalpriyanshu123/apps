@@ -1,0 +1,9 @@
+{
+  "name": "pdf-voice-reader-web",
+  "private": true,
+  "type": "module",
+  "description": "Dev tooling for the web app in app/src/main/assets (nothing here ships in the APK).",
+  "scripts": {
+    "test": "node --test \"web-tests/unit/*.test.mjs\""
+  }
+}

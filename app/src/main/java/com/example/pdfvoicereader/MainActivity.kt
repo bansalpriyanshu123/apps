@@ -1,17 +1,12 @@
 package com.example.pdfvoicereader
 
-import android.annotation.SuppressLint
 import android.Manifest
-import android.content.ActivityNotFoundException
-import android.content.Intent
+import android.annotation.SuppressLint
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
-import android.speech.tts.Voice
-import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -20,32 +15,24 @@ import android.webkit.WebView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
-import org.json.JSONArray
-import org.json.JSONObject
-import java.util.Locale
 
 /**
- * A thin shell around assets/index.html.
+ * A thin shell around the web app in assets/ (index.html + css/ + js/).
  *
- * It does two things the web page cannot do on its own inside a WebView:
- *  1. opens the system file picker when the page asks for a PDF, and
- *  2. exposes Android's native TextToSpeech engine to the page as `window.AndroidTTS`
- *     (WebView has no Web Speech API, and the native engine is better for Hindi anyway).
+ * The page cannot do three things on its own inside a WebView, so the shell provides them:
+ *  1. serving the bundled files over https ([AssetServer]),
+ *  2. the system file picker for choosing a PDF ([PdfFileChooser]),
+ *  3. Android's native text-to-speech, exposed as `window.AndroidTTS` ([SpeechEngine] + [AndroidTtsBridge]),
+ *     plus a foreground service that keeps reading alive with the screen off ([KeepAlive] + [SpeechService]).
  */
 class MainActivity : AppCompatActivity() {
 
     private lateinit var webView: WebView
-    private var tts: TextToSpeech? = null
-    private var ttsReady = false
-    private var fileCallback: ValueCallback<Array<Uri>>? = null
-
-    private val filePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        val uris = WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
-        fileCallback?.onReceiveValue(uris)
-        fileCallback = null
-    }
+    private lateinit var speech: SpeechEngine
+    private val assetServer by lazy { AssetServer(assets) }
+    private val keepAlive by lazy { KeepAlive(this) }
+    private val fileChooser = PdfFileChooser(this, { keepAlive.pickerOpened() }, { keepAlive.pickerClosed() })
 
     private val notificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* optional: reading works without the notification */ }
@@ -53,18 +40,12 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (Build.VERSION.SDK_INT >= 33 &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        requestNotificationPermission()
         PlaybackControl.onPause = { runJs("window.__androidTts && window.__androidTts.onPauseRequested()") }
+
         webView = WebView(this)
         setContentView(webView)
-        WebView.setWebContentsDebuggingEnabled((applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
-
-        val assetLoader = WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
-            .build()
-
+        WebView.setWebContentsDebuggingEnabled((applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0)
         with(webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -75,148 +56,49 @@ class MainActivity : AppCompatActivity() {
 
         webView.webViewClient = object : WebViewClientCompat() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                assetLoader.shouldInterceptRequest(request.url)
+                assetServer.serve(request.url)
 
             override fun onPageFinished(view: WebView?, url: String?) {
-                if (ttsReady) notifyVoicesChanged()
+                if (speech.isReady) notifyVoicesChanged()
             }
         }
-
         webView.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(
                 view: WebView,
                 filePathCallback: ValueCallback<Array<Uri>>,
                 params: FileChooserParams
-            ): Boolean {
-                fileCallback?.onReceiveValue(null)
-                fileCallback = filePathCallback
-                return try {
-                    filePicker.launch(params.createIntent())
-                    true
-                } catch (e: ActivityNotFoundException) {
-                    fileCallback = null
-                    false
-                }
-            }
+            ): Boolean = fileChooser.show(filePathCallback, params)
         }
 
-        webView.addJavascriptInterface(TtsBridge(), "AndroidTTS")
+        speech = SpeechEngine(this, object : SpeechEngine.Listener {
+            override fun onReady() = notifyVoicesChanged()
+            override fun onUtteranceDone(utteranceId: String) =
+                runJs("window.__androidTts && window.__androidTts.onEnd('$utteranceId')")
+            override fun onUtteranceError(utteranceId: String, message: String) =
+                runJs("window.__androidTts && window.__androidTts.onError('$utteranceId', '$message')")
+        })
+        webView.addJavascriptInterface(AndroidTtsBridge(this, speech, keepAlive), "AndroidTTS")
 
-        tts = TextToSpeech(this) { status ->
-            ttsReady = status == TextToSpeech.SUCCESS
-            if (ttsReady) {
-                tts?.language = Locale("hi", "IN")
-                tts?.setOnUtteranceProgressListener(progressListener)
-                notifyVoicesChanged()
-            }
-        }
-
-        // Served over https from the app's own assets so localStorage and relative paths behave normally.
-        webView.loadUrl("https://appassets.androidapp.com/assets/index.html")
+        webView.loadUrl(AssetServer.START_URL)
     }
 
     override fun onDestroy() {
         PlaybackControl.onPause = null
-        stopService(Intent(this, SpeechService::class.java))
-        tts?.stop()
-        tts?.shutdown()
+        keepAlive.release()
+        speech.shutdown()
         webView.destroy()
         super.onDestroy()
     }
 
-    // ---------------------------------------------------------------- TTS → page callbacks
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    // ---------------------------------------------------------------- native -> page
 
     private fun runJs(code: String) = runOnUiThread { webView.evaluateJavascript(code, null) }
 
-    private fun notifyVoicesChanged() =
-        runJs("window.__androidTts && window.__androidTts.onVoicesChanged()")
-
-    private val progressListener = object : UtteranceProgressListener() {
-        override fun onStart(utteranceId: String?) {}
-
-        override fun onDone(utteranceId: String?) {
-            runJs("window.__androidTts && window.__androidTts.onEnd('${utteranceId.orEmpty()}')")
-        }
-
-        @Deprecated("Deprecated in Java")
-        override fun onError(utteranceId: String?) {
-            runJs("window.__androidTts && window.__androidTts.onError('${utteranceId.orEmpty()}', 'error')")
-        }
-
-        override fun onError(utteranceId: String?, errorCode: Int) {
-            runJs("window.__androidTts && window.__androidTts.onError('${utteranceId.orEmpty()}', 'error $errorCode')")
-        }
-
-        override fun onStop(utteranceId: String?, interrupted: Boolean) {
-            // Interrupted by our own stop()/flush; the page already marked that job cancelled.
-        }
-    }
-
-    // ---------------------------------------------------------------- page → TTS
-
-    inner class TtsBridge {
-
-        /** JSON array of {id, name, lang, online}. Empty until the engine has initialised. */
-        @JavascriptInterface
-        fun getVoices(): String {
-            val engine = tts ?: return "[]"
-            if (!ttsReady) return "[]"
-            val voices: Set<Voice> = try { engine.voices ?: emptySet() } catch (e: Exception) { emptySet() }
-            val arr = JSONArray()
-            voices.sortedWith(compareBy({ it.locale.toLanguageTag() }, { it.name })).forEach { v ->
-                if (v.features?.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) == true) return@forEach
-                arr.put(
-                    JSONObject()
-                        .put("id", v.name)
-                        .put("name", prettyName(v))
-                        .put("lang", v.locale.toLanguageTag())
-                        .put("online", v.isNetworkConnectionRequired)
-                )
-            }
-            return arr.toString()
-        }
-
-        @JavascriptInterface
-        fun speak(text: String, voiceId: String, rate: Float, utteranceId: String) {
-            val engine = tts ?: return
-            runOnUiThread {
-                val voice = if (voiceId.isNotEmpty()) {
-                    try { engine.voices?.firstOrNull { it.name == voiceId } } catch (e: Exception) { null }
-                } else null
-                if (voice != null) engine.voice = voice else engine.language = Locale("hi", "IN")
-                engine.setSpeechRate(rate.coerceIn(0.25f, 3f))
-                engine.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
-            }
-        }
-
-        @JavascriptInterface
-        fun stop() {
-            runOnUiThread { tts?.stop() }
-        }
-
-        /** Starts/stops the foreground service that keeps reading alive with the screen off. */
-        @JavascriptInterface
-        fun setPlaying(playing: Boolean, title: String) {
-            runOnUiThread {
-                val intent = Intent(this@MainActivity, SpeechService::class.java)
-                if (playing) {
-                    try {
-                        ContextCompat.startForegroundService(this@MainActivity, intent.putExtra(SpeechService.EXTRA_TITLE, title))
-                    } catch (e: Exception) { /* e.g. started from background; reading still works while visible */ }
-                } else {
-                    stopService(intent)
-                }
-            }
-        }
-
-        /** "hi-in-x-hia-local" → "हिन्दी (India) · hia" */
-        private fun prettyName(v: Voice): String {
-            val loc = v.locale
-            val display = loc.getDisplayName(loc).ifBlank { loc.toLanguageTag() }
-            val parts = v.name.split("-")
-            val variant = parts.filter { it != "x" && it != "local" && it != "network" }
-                .drop(2).joinToString("-")
-            return if (variant.isNotBlank()) "$display · $variant" else display
-        }
-    }
+    private fun notifyVoicesChanged() = runJs("window.__androidTts && window.__androidTts.onVoicesChanged()")
 }

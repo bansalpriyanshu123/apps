@@ -11,6 +11,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Unit-test the web app's text logic
+        run: npm test
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

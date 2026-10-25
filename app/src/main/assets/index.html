@@ -93,41 +93,35 @@
     background: var(--surface);
     border-bottom: 1px solid var(--border);
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 10px 18px;
+    gap: 10px 14px;
     padding: 10px 16px;
   }
-  .brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; margin-right: auto; white-space: nowrap; }
-  .brand small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); line-height: 1.2; }
+  .brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .brand small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; }
   .ctl { display: flex; align-items: center; gap: 8px; }
-  .ctl label { color: var(--muted); font-size: 0.9rem; white-space: nowrap; }
-  .btn { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 7px 12px; cursor: pointer; line-height: 1.2; }
+  .btn { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 8px 12px; cursor: pointer; line-height: 1.2; min-height: 38px; }
   .btn:hover { border-color: var(--accent); }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
   .btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
-  .btn.icon { padding: 7px 10px; min-width: 36px; }
+  .btn.icon { padding: 8px 10px; min-width: 40px; }
+  .btn.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
   .btn:disabled { opacity: 0.45; cursor: default; }
   .btn.dot { position: relative; }
   .btn.dot::after { content: ""; position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
-  .pager { font-variant-numeric: tabular-nums; min-width: 4.5em; text-align: center; }
-  .pager input { width: 2.6em; text-align: right; border: 1px solid var(--border); border-radius: 6px; padding: 3px 4px; background: var(--surface); -moz-appearance: textfield; }
+  .pager { font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+  .pager input { width: 2.8em; text-align: right; border: 1px solid var(--border); border-radius: 6px; padding: 4px; background: var(--surface); -moz-appearance: textfield; }
   .pager input::-webkit-inner-spin-button, .pager input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-  input[type="range"] { accent-color: var(--accent); width: 130px; }
-  .rate-val { font-variant-numeric: tabular-nums; min-width: 3.2em; font-weight: 600; }
-  select, input[type="text"], input[type="password"] { border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 8px; }
-  select { max-width: 220px; }
-  .check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-  .check input { accent-color: var(--accent); width: 16px; height: 16px; }
+  select, input[type="text"], input[type="password"] { border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 7px 8px; }
 
-  main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 24px 16px 130px; width: 100%; }
+  main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 24px 16px 170px; width: 100%; }
   .stage { width: 100%; max-width: 900px; }
 
   .empty { border: 2px dashed var(--border); border-radius: 16px; background: var(--surface); padding: 56px 24px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
   .empty.drag { border-color: var(--accent); background: var(--line-hover); }
   .empty h1 { margin: 0 0 8px; font-size: clamp(1.6rem, 4vw, 2.4rem); font-weight: 600; line-height: 1.2; }
   .empty p { margin: 0 auto; max-width: 42ch; color: var(--muted); }
-  .empty .btn { margin-top: 22px; }
+  .empty .btn { margin-top: 22px; display: inline-block; }
 
   .banner {
     display: none;
@@ -168,13 +162,21 @@
   .notice { margin: 14px auto 0; max-width: 64ch; text-align: center; color: var(--muted); font-size: 0.92rem; }
   .notice.warn { color: var(--danger); }
 
-  .now { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--border); display: none; gap: 14px; align-items: center; z-index: 5; }
+  /* Player */
+  .now { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 20px rgba(0,0,0,.08); display: none; flex-direction: column; gap: 8px; z-index: 5; }
   .now.show { display: flex; }
-  .now .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex: none; animation: pulse 1.1s ease-in-out infinite; }
+  .now-info { display: flex; align-items: center; gap: 10px; min-height: 3em; }
+  .now .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--border); flex: none; }
+  .now.playing .pulse { background: var(--accent); animation: pulse 1.1s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { transform: scale(.7); opacity: .5 } 50% { transform: scale(1); opacity: 1 } }
-  @media (prefers-reduced-motion: reduce) { .now .pulse, .badge .spin { animation: none } .line { transition: none } }
-  .now .text { flex: 1; font-size: 1.15rem; line-height: 1.5; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .now .meta { color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) { .now .pulse, .badge .spin { animation: none !important } .line { transition: none } }
+  .now .text { flex: 1; font-size: 1.05rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .now .text.idle { color: var(--muted); }
+  .now .meta { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+  .now-ctl { display: flex; align-items: center; gap: 8px; }
+  .now-ctl .btn.round { width: 48px; height: 48px; min-width: 48px; border-radius: 50%; padding: 0; font-size: 1.2rem; }
+  .now-ctl select { flex: 1; min-width: 0; max-width: 220px; margin-left: auto; }
+  #speedBtn { min-width: 3.9em; font-variant-numeric: tabular-nums; font-weight: 600; }
 
   /* Settings */
   .scrim { position: fixed; inset: 0; background: rgba(10,14,20,.45); display: none; z-index: 20; }
@@ -188,32 +190,32 @@
     padding: calc(20px + env(safe-area-inset-top, 0px)) 22px calc(20px + env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     transform: translateX(100%);
-    transition: transform .22s ease;
+    visibility: hidden;
+    transition: transform .22s ease, visibility 0s .22s;
   }
-  .sheet.show { transform: none; }
-  @media (prefers-reduced-motion: reduce) { .sheet { transition: none } }
+  .sheet.show { transform: none; visibility: visible; transition: transform .22s ease; }
+  @media (prefers-reduced-motion: reduce) { .sheet, .sheet.show { transition: none } }
   .sheet h2 { margin: 0 0 4px; font-size: 1.25rem; font-weight: 600; }
-  .sheet .sub { margin: 0 0 20px; color: var(--muted); font-size: 0.92rem; }
+  .sheet h2.sec { font-size: 1.05rem; margin-top: 26px; }
+  .sheet .sub { margin: 0 0 18px; color: var(--muted); font-size: 0.92rem; }
   .field { margin-bottom: 18px; }
   .field > label { display: block; font-weight: 600; margin-bottom: 6px; }
   .field .help { color: var(--muted); font-size: 0.86rem; margin-top: 6px; line-height: 1.4; }
   .field input[type="password"], .field input[type="text"], .field select { width: 100%; max-width: none; }
   .field .row { display: flex; gap: 8px; }
   .field .row input { flex: 1; }
-  .sheet .actions { display: flex; gap: 10px; margin-top: 8px; }
+  .sheet .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
   .sheet .close { position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); right: 14px; }
-  .status-line { font-size: 0.88rem; margin-top: 8px; min-height: 1.3em; }
+  .status-line { font-size: 0.88rem; margin-top: 8px; min-height: 1.3em; overflow-wrap: anywhere; }
   .status-line.ok { color: var(--accent-ink); }
   .status-line.bad { color: var(--danger); }
 
   @media (max-width: 640px) {
-    .bar { gap: 8px 12px; padding: 8px 12px; }
+    .bar { gap: 8px 10px; padding: 8px 12px; }
     .brand small { display: none; }
-    input[type="range"] { width: 100px; }
-    select { max-width: 160px; }
-    main { padding: 14px 8px 130px; }
+    .btn.long { display: none; }
+    main { padding: 14px 8px 170px; }
     #pages { gap: 10px; }
-    .now .text { font-size: 1rem; white-space: normal; max-height: 3em; }
     .now .meta { display: none; }
     .banner { flex-direction: column; align-items: stretch; }
   }
@@ -224,11 +226,6 @@
 <header class="bar" id="bar">
   <div class="brand">PDF Voice Reader<small>किसी भी पंक्ति पर क्लिक करें, वह बोली जाएगी</small></div>
 
-  <div class="ctl">
-    <button class="btn primary" id="openBtn">Open PDF</button>
-    <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
-  </div>
-
   <div class="ctl" id="pagerCtl" hidden>
     <button class="btn icon" id="prevBtn" aria-label="Previous page">‹</button>
     <span class="pager"><input type="number" id="pageInput" min="1" value="1" aria-label="Page number"> / <span id="pageTotal">–</span></span>
@@ -236,23 +233,8 @@
   </div>
 
   <div class="ctl">
-    <label for="rate">Speed</label>
-    <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1">
-    <span class="rate-val" id="rateVal">1.0×</span>
-  </div>
-
-  <div class="ctl">
-    <label for="voice">Voice</label>
-    <select id="voice"><option value="">Loading voices…</option></select>
-    <button class="btn icon" id="testBtn" title="Hear this voice">▶</button>
-  </div>
-
-  <div class="ctl">
-    <label class="check" title="Keep reading line after line until you press Stop"><input type="checkbox" id="cont"> Continue reading</label>
-  </div>
-
-  <div class="ctl">
-    <button class="btn" id="stopBtn" disabled>Stop</button>
+    <button class="btn primary" id="openBtn">Open PDF</button>
+    <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
     <button class="btn icon" id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
   </div>
 </header>
@@ -261,7 +243,7 @@
   <div class="stage" id="stage">
     <div class="empty" id="empty" tabindex="0" role="button">
       <h1>कोई हिंदी PDF खोलें</h1>
-      <p>Open a PDF, scroll through it like a normal document, and tap any line to hear it read aloud. If the PDF uses an old Hindi font and the text comes out garbled, Gemini can read the page for you — set it up under ⚙.</p>
+      <p>Open a PDF, then press ▶ to listen from the start, or tap any line to begin there. If the PDF uses an old Hindi font and the text comes out garbled, Gemini can read the page for you — set it up under ⚙.</p>
       <span class="btn primary">Choose a PDF file</span>
     </div>
 
@@ -277,9 +259,20 @@
 </main>
 
 <div class="now" id="now">
-  <span class="pulse" aria-hidden="true"></span>
-  <div class="text" id="nowText"></div>
-  <span class="meta" id="nowMeta"></span>
+  <div class="now-info">
+    <span class="pulse" aria-hidden="true"></span>
+    <div class="text idle" id="nowText" aria-live="polite"></div>
+    <span class="meta" id="nowMeta"></span>
+  </div>
+  <div class="now-ctl">
+    <button class="btn icon" id="prevSeg" aria-label="Previous sentence" title="Previous sentence">⏮</button>
+    <button class="btn primary round" id="playBtn" aria-label="Play" title="Play / pause">▶</button>
+    <button class="btn icon" id="nextSeg" aria-label="Next sentence" title="Next sentence">⏭</button>
+    <button class="btn icon" id="stopBtn" aria-label="Stop" title="Stop" disabled>■</button>
+    <button class="btn" id="speedBtn" title="Speed">1.0×</button>
+    <button class="btn icon" id="contBtn" aria-pressed="false" title="Keep reading until I stop">∞</button>
+    <select id="voice" aria-label="Voice"><option value="">Loading voices…</option></select>
+  </div>
 </div>
 
 <div class="scrim" id="scrim"></div>
@@ -291,13 +284,17 @@
   <div class="field">
     <label for="contMode">When I tap a line</label>
     <select id="contMode">
-      <option value="0">Read only that line</option>
+      <option value="0">Read only that sentence</option>
       <option value="1">Keep reading from there until I press Stop</option>
     </select>
-    <div class="help">Continuous reading flows across page breaks. The “Continue reading” switch in the toolbar is the same setting.</div>
+    <div class="help">Continuous reading flows across page breaks. The ∞ button in the player is the same setting.</div>
   </div>
 
-  <h2 style="font-size:1.05rem;margin-top:26px">Gemini</h2>
+  <div class="field">
+    <button class="btn" id="testVoice" type="button">▶ Hear the selected voice</button>
+  </div>
+
+  <h2 class="sec">Gemini</h2>
   <p class="sub">Gemini looks at each page as a picture and returns the real Hindi text — this fixes PDFs made with old fonts (Kruti Dev, Chanakya…) that come out as “%%% 000”, and it also works for scanned PDFs.</p>
 
   <div class="field">
@@ -316,13 +313,13 @@
       <option value="always">Always, for every page</option>
       <option value="never">Never — use the PDF's own text</option>
     </select>
-    <div class="help">Each page is read once and remembered on this device, so re-opening the same PDF costs nothing.</div>
+    <div class="help">Each page is read once, after you stay on it for a moment, and remembered on this device.</div>
   </div>
 
   <div class="field">
     <label for="textModel">Model for reading pages</label>
     <input type="text" id="textModel" placeholder="gemini-3.8-flash">
-    <div class="help">Default is gemini-3.8-flash. Change only if Google retires it.</div>
+    <div class="help">If “Test key” says the model is not found, it lists the models your key can use — paste one here.</div>
   </div>
 
   <div class="field">
@@ -346,17 +343,21 @@
   const bar = $('bar'), fileInput = $('fileInput'), openBtn = $('openBtn'), empty = $('empty');
   const stage = $('stage'), pagesEl = $('pages');
   const pagerCtl = $('pagerCtl'), pageInput = $('pageInput'), pageTotal = $('pageTotal'), prevBtn = $('prevBtn'), nextBtn = $('nextBtn');
-  const rateInput = $('rate'), rateVal = $('rateVal'), voiceSel = $('voice'), testBtn = $('testBtn'), contChk = $('cont');
-  const stopBtn = $('stopBtn'), notice = $('notice'), now = $('now'), nowText = $('nowText'), nowMeta = $('nowMeta');
+  const voiceSel = $('voice'), speedBtn = $('speedBtn'), contBtn = $('contBtn'), playBtn = $('playBtn');
+  const prevSeg = $('prevSeg'), nextSeg = $('nextSeg'), stopBtn = $('stopBtn'), testVoice = $('testVoice');
+  const notice = $('notice'), now = $('now'), nowText = $('nowText'), nowMeta = $('nowMeta');
   const banner = $('banner'), bannerText = $('bannerText'), bannerBtn = $('bannerBtn');
   const settingsBtn = $('settingsBtn'), scrim = $('scrim'), sheet = $('sheet'), closeSheet = $('closeSheet');
   const apiKeyInput = $('apiKey'), showKey = $('showKey'), ocrModeSel = $('ocrMode'), contModeSel = $('contMode'), textModelInput = $('textModel'), ttsModelInput = $('ttsModel');
   const saveSettings = $('saveSettings'), testKey = $('testKey'), clearCache = $('clearCache'), keyStatus = $('keyStatus');
 
   const SAMPLE = 'नमस्ते। यह आवाज़ का नमूना है। आप गति बदल सकते हैं।';
+  const IDLE_TEXT = 'Tap any line, or press ▶ to read from this page.';
   const DEFAULT_TEXT_MODEL = 'gemini-3.8-flash';
   const DEFAULT_TTS_MODEL = 'gemini-3.8-flash-tts';
   const GEMINI_VOICES = ['Kore', 'Puck', 'Zephyr', 'Charon', 'Fenrir', 'Leda', 'Aoede', 'Orus'];
+  const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
+  const LAST = Infinity;
   const IN_ANDROID_APP = location.hostname === 'appassets.androidapp.com';
 
   function setNotice(msg, warn) {
@@ -377,6 +378,33 @@
     ttsModel: loadPref('pvr-tts-model', '') || DEFAULT_TTS_MODEL
   };
   const hasKey = () => !!settings.key;
+
+  /* Read-page cache lives in IndexedDB (localStorage's ~5 MB fills up fast with OCR text). */
+  const idb = (() => {
+    let dbp = null;
+    const open = () => {
+      if (!dbp) dbp = new Promise((res, rej) => {
+        if (!window.indexedDB) { rej(new Error('no idb')); return; }
+        const r = indexedDB.open('pvr', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('ocr');
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      return dbp;
+    };
+    const tx = (mode, fn) => open().then((db) => new Promise((res, rej) => {
+      const t = db.transaction('ocr', mode);
+      const req = fn(t.objectStore('ocr'));
+      t.oncomplete = () => res(req && req.result);
+      t.onerror = () => rej(t.error);
+    }));
+    return {
+      get: (k) => tx('readonly', (s) => s.get(k)).catch(() => undefined),
+      set: (k, v) => tx('readwrite', (s) => s.put(v, k)).catch(() => {}),
+      count: () => tx('readonly', (s) => s.count()).catch(() => 0),
+      clear: () => tx('readwrite', (s) => s.clear()).catch(() => {})
+    };
+  })();
 
   /* =====================================================================
      PDF engine loading (bundled inside the Android app, CDN elsewhere)
@@ -419,9 +447,7 @@
   /* =====================================================================
      Gemini API
      ===================================================================== */
-  function geminiUrl(model) {
-    return 'https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':generateContent';
-  }
+  const API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/';
   function friendlyFetchError(e) {
     if (e && e.name === 'TypeError') {
       return IN_ANDROID_APP
@@ -430,25 +456,34 @@
     }
     return (e && e.message) || String(e);
   }
-  async function geminiCall(model, body) {
-    let res;
-    try {
-      res = await fetch(geminiUrl(model), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.key },
-        body: JSON.stringify(body)
-      });
-    } catch (e) {
-      throw new Error(friendlyFetchError(e));
-    }
-    if (!res.ok) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  async function geminiFetch(url, init) {
+    // Free-tier keys hit 429/503 in bursts; back off and retry a couple of times.
+    for (let attempt = 1; ; attempt++) {
+      let res;
+      try {
+        res = await fetch(url, Object.assign({ headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.key } }, init));
+      } catch (e) {
+        throw new Error(friendlyFetchError(e));
+      }
+      if (res.ok) return res.json();
+      if ((res.status === 429 || res.status === 503) && attempt < 3) { await sleep(1500 * attempt); continue; }
       let msg = res.status + ' ' + res.statusText;
       try { const j = await res.json(); if (j.error && j.error.message) msg = j.error.message; } catch (e) { /* ignore */ }
       const err = new Error(msg);
       err.status = res.status;
       throw err;
     }
-    return res.json();
+  }
+  function geminiCall(model, body) {
+    return geminiFetch(API_ROOT + 'models/' + encodeURIComponent(model) + ':generateContent', { method: 'POST', body: JSON.stringify(body) });
+  }
+  async function listModels() {
+    const d = await geminiFetch(API_ROOT + 'models?pageSize=200', { method: 'GET' });
+    return (d.models || [])
+      .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map((m) => String(m.name).replace(/^models\//, ''));
   }
 
   /* ---- page reading (vision) ---- */
@@ -520,8 +555,8 @@
 
   /* ---- Gemini voices (TTS) ---- */
   const geminiTts = (() => {
-    const cache = new Map(); // key → blob URL
-    let audio = null, activeJob = null;
+    const cache = new Map(); // key → Promise<blob URL>
+    let audio = null;
 
     function pcmToWav(bytes, sampleRate) {
       const buf = new ArrayBuffer(44 + bytes.length);
@@ -534,9 +569,7 @@
       new Uint8Array(buf, 44).set(bytes);
       return new Blob([buf], { type: 'audio/wav' });
     }
-    async function fetchAudio(text, voiceName) {
-      const key = voiceName + '|' + settings.ttsModel + '|' + text;
-      if (cache.has(key)) return cache.get(key);
+    async function requestAudio(text, voiceName) {
       const data = await geminiCall(settings.ttsModel, {
         contents: [{ role: 'user', parts: [{ text }] }],
         generationConfig: {
@@ -554,20 +587,29 @@
       const bytes = new Uint8Array(bin.length);
       for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
       const blob = /wav|mpeg|ogg/.test(mime) ? new Blob([bytes], { type: mime }) : pcmToWav(bytes, sampleRate);
-      const url = URL.createObjectURL(blob);
-      if (cache.size > 80) { const first = cache.keys().next().value; URL.revokeObjectURL(cache.get(first)); cache.delete(first); }
-      cache.set(key, url);
-      return url;
+      return URL.createObjectURL(blob);
+    }
+    function fetchAudio(text, voiceName) {
+      const key = voiceName + '|' + settings.ttsModel + '|' + text;
+      if (cache.has(key)) return cache.get(key);
+      const p = requestAudio(text, voiceName);
+      cache.set(key, p);
+      p.catch(() => cache.delete(key));
+      if (cache.size > 60) {
+        const first = cache.keys().next().value;
+        cache.get(first).then((u) => URL.revokeObjectURL(u), () => {});
+        cache.delete(first);
+      }
+      return p;
     }
     return {
       prefetch(text, voiceName) { fetchAudio(text, voiceName).catch(() => {}); },
       async speak(text, voiceName, rate, job) {
-        activeJob = job;
         let url;
         try { url = await fetchAudio(text, voiceName); }
         catch (e) { if (!job.cancelled && job.onerror) job.onerror(e.message); return; }
         if (job.cancelled) return;
-        this.cancel(false);
+        this.cancel();
         audio = new Audio(url);
         audio.preservesPitch = true; audio.mozPreservesPitch = true;
         audio.playbackRate = rate;
@@ -576,10 +618,7 @@
         try { await audio.play(); } catch (e) { if (!job.cancelled && job.onerror) job.onerror('playback blocked: ' + e.message); }
       },
       setRate(r) { if (audio) audio.playbackRate = r; },
-      cancel(markJob = true) {
-        if (markJob && activeJob) activeJob.cancelled = true;
-        if (audio) { audio.pause(); audio.src = ''; audio = null; }
-      },
+      cancel() { if (audio) { audio.onended = audio.onerror = null; audio.pause(); audio.src = ''; audio = null; } },
       speaking() { return !!audio && !audio.paused && !audio.ended; }
     };
   })();
@@ -610,7 +649,8 @@
         setTimeout(() => { if (!job.cancelled) speechSynthesis.speak(u); }, 60);
       },
       cancel() { if (ok) speechSynthesis.cancel(); },
-      speaking() { return ok && speechSynthesis.speaking; }
+      speaking() { return ok && speechSynthesis.speaking; },
+      setPlaying() { /* browser: nothing to keep alive */ }
     };
   }
 
@@ -621,7 +661,8 @@
     window.__androidTts = {
       onEnd(id) { const j = jobs[id]; delete jobs[id]; isSpeaking = false; if (j && !j.cancelled && j.onend) j.onend(); },
       onError(id, msg) { const j = jobs[id]; delete jobs[id]; isSpeaking = false; if (j && !j.cancelled && j.onerror) j.onerror(msg || 'error'); },
-      onVoicesChanged() { if (changeCb) changeCb(); }
+      onVoicesChanged() { if (changeCb) changeCb(); },
+      onPauseRequested() { pause(); }
     };
     return {
       available: true,
@@ -634,15 +675,20 @@
         N.speak(text, voice ? voice.id : '', rate, id);
       },
       cancel() { isSpeaking = false; for (const k in jobs) { jobs[k].cancelled = true; delete jobs[k]; } N.stop(); },
-      speaking() { return isSpeaking; }
+      speaking() { return isSpeaking; },
+      // Lets the native side run a foreground service so reading continues with the screen off.
+      setPlaying(on, title) { try { if (N.setPlaying) N.setPlaying(!!on, title || ''); } catch (e) { /* older shell */ } }
     };
   }
 
   const deviceTts = window.AndroidTTS ? makeAndroidTts() : makeWebTts();
 
   /* ---------- state ---------- */
-  let pdfDoc = null, pdfId = '', pages = [], scale = 1, currentPage = 1, observer = null;
-  let voices = [], job = null, active = null, rate = 1;
+  let pdfDoc = null, pdfId = '', pages = [], scale = 1, currentPage = 1, observer = null, visObserver = null;
+  let voices = [], job = null, rate = 1, cont = true;
+  let active = null;      // { p, s } page number and sentence index being spoken
+  let resumePos = null;   // where ▶ continues after a pause
+  let playing = false, playToken = 0, lastBridgePlaying = false;
   let geminiQueue = Promise.resolve();
 
   function syncBarHeight() {
@@ -650,15 +696,26 @@
   }
   syncBarHeight();
 
-  rate = parseFloat(loadPref('pvr-rate', '1')) || 1;
-  rateInput.value = rate;
-  rateVal.textContent = rate.toFixed(1) + '×';
-  contChk.checked = loadPref('pvr-cont', '0') === '1';
+  function setRate(r) {
+    rate = SPEEDS.reduce((a, b) => (Math.abs(b - r) < Math.abs(a - r) ? b : a), 1);
+    speedBtn.textContent = rate.toFixed(2).replace(/0$/, '') + '×';
+    savePref('pvr-rate', String(rate));
+    geminiTts.setRate(rate);
+  }
+  setRate(parseFloat(loadPref('pvr-rate', '1')) || 1);
+
+  function setCont(v) {
+    cont = !!v;
+    contBtn.classList.toggle('on', cont);
+    contBtn.setAttribute('aria-pressed', cont ? 'true' : 'false');
+    savePref('pvr-cont', cont ? '1' : '0');
+  }
+  setCont(loadPref('pvr-cont', '1') === '1');
 
   /* ---------- settings sheet ---------- */
   function openSheet() {
     apiKeyInput.value = settings.key;
-    contModeSel.value = contChk.checked ? '1' : '0';
+    contModeSel.value = cont ? '1' : '0';
     ocrModeSel.value = settings.ocrMode;
     textModelInput.value = settings.textModel;
     ttsModelInput.value = settings.ttsModel;
@@ -678,8 +735,7 @@
   });
   saveSettings.addEventListener('click', () => {
     const hadKey = hasKey();
-    contChk.checked = contModeSel.value === '1';
-    savePref('pvr-cont', contChk.checked ? '1' : '0');
+    setCont(contModeSel.value === '1');
     settings.key = apiKeyInput.value.trim();
     settings.ocrMode = ocrModeSel.value;
     settings.textModel = textModelInput.value.trim() || DEFAULT_TEXT_MODEL;
@@ -695,7 +751,9 @@
       // Re-evaluate which pages should be read by Gemini under the new settings.
       for (const pg of pages) {
         if (pg.geminiState === 'error') pg.geminiState = 'idle';
-        if (pg.rendered) scheduleGemini(pg);
+        if (pg.textReady) {
+          pg.textReady.then(() => { applyLines(pg); if (pg.rendered) layoutLines(pg); if (pg.visible) ensureText(pg, true); });
+        }
       }
       updateBanner();
     }
@@ -715,11 +773,20 @@
       keyStatus.textContent = 'Key works' + (t ? ' (model replied: ' + t.trim().slice(0, 20) + ')' : '') + '.';
       keyStatus.className = 'status-line ok';
     } catch (e) {
-      keyStatus.textContent = e.message; keyStatus.className = 'status-line bad';
+      let msg = e.message;
+      if (e.status === 404) {
+        try {
+          const names = await listModels();
+          const pick = names.filter((m) => /flash/.test(m)).slice(0, 8);
+          msg += ' — Model not found. Models your key can use: ' + (pick.length ? pick.join(', ') : names.slice(0, 8).join(', ') || 'none') + '.';
+        } catch (e2) { /* keep original message */ }
+      }
+      keyStatus.textContent = msg; keyStatus.className = 'status-line bad';
     } finally { settings.key = saved; }
   });
-  clearCache.addEventListener('click', () => {
-    let n = 0;
+  clearCache.addEventListener('click', async () => {
+    let n = await idb.count();
+    await idb.clear();
     try {
       const keys = [];
       for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('pvr-ocr:')) keys.push(k); }
@@ -783,7 +850,7 @@
   function selectedVoice() { return voices.find((x) => x.id === voiceSel.value) || null; }
   voiceSel.addEventListener('change', () => {
     savePref('pvr-voice', voiceSel.value);
-    if (active && isSpeaking()) speakLine(active.p, active.i);
+    if (playing && active) speakSeg(active.p, active.s);
   });
 
   function newJob(onend, onerror) {
@@ -791,7 +858,6 @@
     job = { onend, onerror, cancelled: false };
     return job;
   }
-  function isSpeaking() { return deviceTts.speaking() || geminiTts.speaking(); }
   function cancelAll() { deviceTts.cancel(); geminiTts.cancel(); }
   function speakText(text, voice, r, j) {
     if (voice && voice.gemini) geminiTts.speak(text, voice.name, r, j);
@@ -799,92 +865,186 @@
     else if (j.onerror) j.onerror('no speech engine');
   }
 
-  testBtn.addEventListener('click', () => {
+  testVoice.addEventListener('click', () => {
     if (!voices.length) loadVoices();
     stop();
     const v = selectedVoice();
-    nowText.textContent = SAMPLE;
-    nowMeta.textContent = v ? v.name : 'default voice';
-    now.classList.add('show');
-    stopBtn.disabled = false;
-    const done = () => { now.classList.remove('show'); stopBtn.disabled = true; };
-    speakText(SAMPLE, v, rate, newJob(done, (m) => { done(); setNotice('Voice test failed: ' + m, true); }));
+    const j = newJob(() => {}, (m) => setNotice('Voice test failed: ' + m, true));
+    speakText(SAMPLE, v, rate, j);
   });
 
-  /* ---------- speed ---------- */
-  rateInput.addEventListener('input', () => {
-    rate = parseFloat(rateInput.value);
-    rateVal.textContent = rate.toFixed(1) + '×';
-    savePref('pvr-rate', String(rate));
-    geminiTts.setRate(rate);
-  });
-  rateInput.addEventListener('change', () => {
-    if (active && deviceTts.speaking()) speakLine(active.p, active.i);
-  });
-  contChk.addEventListener('change', () => savePref('pvr-cont', contChk.checked ? '1' : '0'));
-
-  /* ---------- speaking lines ---------- */
-  function setActive(p, i) {
-    if (active) {
-      const prevEl = pages[active.p - 1] && pages[active.p - 1].textLayer.children[active.i];
-      if (prevEl) prevEl.classList.remove('active');
-    }
-    if (p == null) {
-      active = null;
-      now.classList.remove('show');
-      stopBtn.disabled = true;
-      return;
-    }
-    active = { p, i };
-    const pg = pages[p - 1];
-    const el = pg.textLayer.children[i];
-    if (el) {
-      el.classList.add('active');
-      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-    }
-    nowText.textContent = pg.lines[i].text;
-    nowMeta.textContent = 'Page ' + p + ' · line ' + (i + 1) + ' of ' + pg.lines.length;
-    now.classList.add('show');
-    stopBtn.disabled = false;
-  }
-
-  async function speakLine(p, i) {
-    if (!pdfDoc) return;
-    if (p < 1 || p > pdfDoc.numPages) { setActive(null); return; }
-    const pg = pages[p - 1];
-    await ensureText(pg);
-    if (i >= pg.lines.length) {
-      if (contChk.checked) {
-        let np = p + 1;
-        while (np <= pdfDoc.numPages) {
-          await ensureText(pages[np - 1]);
-          if (pages[np - 1].lines.length) { speakLine(np, 0); return; }
-          np++;
-        }
-      }
-      setActive(null);
-      return;
-    }
-    if (i < 0) { setActive(null); return; }
-
-    cancelAll();
-    setActive(p, i);
+  /* ---------- player controls ---------- */
+  speedBtn.addEventListener('click', () => {
+    const i = SPEEDS.indexOf(rate);
+    setRate(SPEEDS[(i + 1) % SPEEDS.length]);
+    // Gemini audio changes speed live; device voices need a restart of the current sentence.
     const v = selectedVoice();
-    const j = newJob(
-      () => { if (contChk.checked) speakLine(p, i + 1); else setActive(null); },
-      (msg) => { setActive(null); setNotice('Speech failed: ' + msg, true); }
-    );
-    speakText(pg.lines[i].text, v, rate, j);
-    if (v && v.gemini && contChk.checked && pg.lines[i + 1]) geminiTts.prefetch(pg.lines[i + 1].text, v.name);
+    if (playing && active && !(v && v.gemini)) speakSeg(active.p, active.s);
+  });
+  contBtn.addEventListener('click', () => setCont(!cont));
+  playBtn.addEventListener('click', togglePlay);
+  stopBtn.addEventListener('click', stop);
+  prevSeg.addEventListener('click', () => step(-1));
+  nextSeg.addEventListener('click', () => step(1));
+
+  function setPlayState() {
+    playBtn.textContent = playing ? '⏸' : '▶';
+    playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    now.classList.toggle('playing', playing);
+    stopBtn.disabled = !active && !playing && !resumePos;
+    if (playing !== lastBridgePlaying) {
+      lastBridgePlaying = playing;
+      deviceTts.setPlaying(playing, 'PDF Voice Reader');
+    }
+    if ('mediaSession' in navigator) { try { navigator.mediaSession.playbackState = playing ? 'playing' : 'paused'; } catch (e) { /* ignore */ } }
+  }
+  if ('mediaSession' in navigator) {
+    try {
+      navigator.mediaSession.setActionHandler('play', () => togglePlay());
+      navigator.mediaSession.setActionHandler('pause', () => pause());
+      navigator.mediaSession.setActionHandler('previoustrack', () => step(-1));
+      navigator.mediaSession.setActionHandler('nexttrack', () => step(1));
+    } catch (e) { /* ignore */ }
   }
 
+  function showIdleText() {
+    nowText.textContent = IDLE_TEXT;
+    nowText.classList.add('idle');
+    nowMeta.textContent = '';
+  }
+
+  function togglePlay() {
+    if (!pdfDoc) { fileInput.click(); return; }
+    if (playing) pause();
+    else if (resumePos) speakSeg(resumePos.p, resumePos.s);
+    else speakSeg(currentPage, 0);
+  }
+  function step(dir) {
+    if (!pdfDoc) return;
+    const base = active || resumePos || { p: currentPage, s: dir > 0 ? -1 : 0 };
+    speakSeg(base.p, base.s + dir);
+  }
+  function pause() {
+    if (!playing) return;
+    playToken++;
+    if (job) job.cancelled = true;
+    cancelAll();
+    resumePos = active;
+    playing = false;
+    setPlayState();
+  }
   function stop() {
+    playToken++;
     if (job) job.cancelled = true;
     job = null;
     cancelAll();
+    playing = false;
+    resumePos = null;
     setActive(null);
+    setPlayState();
   }
-  stopBtn.addEventListener('click', stop);
+  function endPlayback() {
+    playing = false;
+    resumePos = null;
+    setActive(null);
+    setPlayState();
+  }
+
+  /* ---------- sentences: lines merged into speakable units ---------- */
+  const SENTENCE_END = /[।॥.?!]["'”’)\]]*$/;
+  function buildSegs(pg) {
+    const segs = [];
+    let cur = null, prev = null;
+    pg.lines.forEach((L, i) => {
+      const bigGap = cur && prev && (L.top - (prev.top + prev.height)) > prev.height * 0.9;
+      if (cur && (bigGap || cur.text.length > 280)) { segs.push(cur); cur = null; }
+      if (!cur) cur = { text: '', lines: [] };
+      cur.text += (cur.text ? ' ' : '') + L.text;
+      cur.lines.push(i);
+      L.seg = segs.length;
+      prev = L;
+      if (SENTENCE_END.test(L.text)) { segs.push(cur); cur = null; }
+    });
+    if (cur) segs.push(cur);
+    pg.segs = segs;
+  }
+
+  function lineEls(p, s) {
+    const pg = pages[p - 1];
+    const seg = pg && pg.segs[s];
+    if (!seg) return [];
+    return seg.lines.map((i) => pg.textLayer.children[i]).filter(Boolean);
+  }
+
+  function setActive(p, s) {
+    if (active) lineEls(active.p, active.s).forEach((el) => el.classList.remove('active'));
+    if (p == null) {
+      active = null;
+      showIdleText();
+      return;
+    }
+    active = { p, s };
+    const pg = pages[p - 1];
+    const els = lineEls(p, s);
+    els.forEach((el) => el.classList.add('active'));
+    if (els[0]) els[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+    nowText.textContent = pg.segs[s].text;
+    nowText.classList.remove('idle');
+    nowMeta.textContent = 'Page ' + p + ' · ' + (s + 1) + ' / ' + pg.segs.length;
+  }
+
+  function blockedMessage(pg) {
+    if (!hasKey()) return 'Page ' + pg.num + ' has garbled text (old Hindi font). Add a Gemini key under ⚙ so it can be read properly.';
+    if (settings.ocrMode === 'never') return 'Page ' + pg.num + ' has garbled text and Gemini reading is switched off in settings.';
+    if (pg.geminiState === 'error') return 'Gemini could not read page ' + pg.num + '. Tap the page text to retry.';
+    return 'Page ' + pg.num + ' has garbled text.';
+  }
+  const usingPdfText = (pg) => !pg.lines.length || pg.lines[0].source === 'pdf';
+
+  // Finds the page/sentence to speak, loading text (and Gemini OCR) as needed. Returns null if cancelled or blocked.
+  async function locate(p, s, token) {
+    while (p >= 1 && p <= pdfDoc.numPages) {
+      const pg = pages[p - 1];
+      if (token === playToken && !pg.textReady) { nowText.textContent = 'Preparing page ' + p + '…'; nowText.classList.add('idle'); }
+      await ensureText(pg, true);
+      if (token !== playToken) return null;
+      if (pg.garbled && usingPdfText(pg)) { setNotice(blockedMessage(pg), true); updateBanner(true); return null; }
+      const n = pg.segs.length;
+      if (s === LAST) s = n - 1;
+      if (s >= 0 && s < n) return { p, s };
+      if (s < 0) { p--; s = LAST; } else { p++; s = 0; }
+    }
+    return null;
+  }
+
+  async function speakSeg(p, s) {
+    if (!pdfDoc) return;
+    const token = ++playToken;
+    if (job) job.cancelled = true;
+    cancelAll();
+    playing = true;
+    setPlayState();
+    const pg0 = pages[Math.min(Math.max(p, 1), pdfDoc.numPages) - 1];
+    if (pg0.geminiState === 'error') pg0.geminiState = 'idle'; // a tap is an explicit retry
+
+    let pos;
+    try { pos = await locate(p, s, token); } catch (e) { pos = null; if (token === playToken) setNotice('Could not prepare the page: ' + e.message, true); }
+    if (token !== playToken) return;
+    if (!pos) { endPlayback(); return; }
+
+    setActive(pos.p, pos.s);
+    setPlayState();
+    const pg = pages[pos.p - 1];
+    const v = selectedVoice();
+    const j = newJob(
+      () => { if (token !== playToken) return; if (cont) speakSeg(pos.p, pos.s + 1); else endPlayback(); },
+      (msg) => { if (token !== playToken) return; endPlayback(); setNotice('Speech failed: ' + msg, true); }
+    );
+    speakText(pg.segs[pos.s].text, v, rate, j);
+    if (v && v.gemini && cont) {
+      for (let k = 1; k <= 2; k++) { const nx = pg.segs[pos.s + k]; if (nx) geminiTts.prefetch(nx.text, v.name); }
+    }
+  }
 
   /* ---------- PDF loading ---------- */
   async function openFile(file) {
@@ -906,12 +1066,21 @@
       empty.style.display = 'none';
       pagesEl.style.display = 'flex';
       pagerCtl.hidden = false;
+      now.classList.add('show');
+      showIdleText();
+      setPlayState();
       pageTotal.textContent = pdfDoc.numPages;
       pageInput.max = pdfDoc.numPages;
       syncBarHeight();
       await buildPages();
-      setNotice(pdfDoc.numPages + (pdfDoc.numPages === 1 ? ' page' : ' pages') + '. Scroll, then tap a line to hear it.', false);
-      window.scrollTo({ top: 0 });
+      const saved = parseInt(loadPref('pvr-pos:' + pdfId, '1'), 10) || 1;
+      if (saved > 1 && saved <= pdfDoc.numPages) {
+        goToPage(saved, false);
+        setNotice('Resumed at page ' + saved + ' of ' + pdfDoc.numPages + '.', false);
+      } else {
+        setNotice(pdfDoc.numPages + (pdfDoc.numPages === 1 ? ' page' : ' pages') + '. Press ▶ or tap a line to listen.', false);
+        window.scrollTo({ top: 0 });
+      }
     } catch (err) {
       setNotice('Could not open this PDF: ' + (err && err.message ? err.message : err), true);
     }
@@ -926,32 +1095,46 @@
   ['dragleave', 'drop'].forEach((ev) => document.addEventListener(ev, (e) => { e.preventDefault(); empty.classList.remove('drag'); }));
   document.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) openFile(f); });
 
-  /* ---------- page layout (continuous scroll) ---------- */
-  function computeScale(baseWidths) {
+  /* ---------- page layout (continuous scroll, pages loaded lazily) ---------- */
+  function computeScale(baseWidth) {
     const stageW = Math.max(280, stage.clientWidth);
-    const widest = Math.max(...baseWidths);
-    return Math.min(stageW / widest, 2.5);
+    return Math.min(stageW / baseWidth, 2.5);
   }
 
   async function buildPages() {
     if (observer) observer.disconnect();
+    if (visObserver) visObserver.disconnect();
     pagesEl.innerHTML = '';
     pages = [];
-    const baseWidths = [];
+    // Only page 1 is read up front; every other page starts as a placeholder of the same size
+    // and fetches its real size when it scrolls near the screen.
+    const first = await pdfDoc.getPage(1);
+    const base = first.getViewport({ scale: 1 });
+    scale = computeScale(base.width);
     for (let n = 1; n <= pdfDoc.numPages; n++) {
-      const page = await pdfDoc.getPage(n);
-      const base = page.getViewport({ scale: 1 });
-      baseWidths.push(base.width);
-      pages.push({ num: n, page, base, lines: [], rendered: false, rendering: null, textReady: null, renderTask: null, geminiState: 'idle', ocr: null, garbled: false });
+      pages.push({
+        num: n, page: n === 1 ? first : null, base, pageLoad: n === 1 ? Promise.resolve(first) : null,
+        lines: [], segs: [], pdfLines: null, rendered: false, rendering: null, textReady: null, renderTask: null,
+        geminiState: 'idle', geminiPromise: null, ocr: null, garbled: false, visible: false, dwell: null
+      });
     }
-    scale = computeScale(baseWidths);
 
     observer = new IntersectionObserver((entries) => {
       for (const en of entries) {
         const pg = pages[parseInt(en.target.dataset.page, 10) - 1];
-        if (en.isIntersecting) renderPage(pg); else unrenderPage(pg);
+        if (en.isIntersecting) renderPage(pg).catch(() => {}); else unrenderPage(pg);
       }
     }, { rootMargin: '900px 0px' });
+
+    // Gemini only reads a page once you actually dwell on it, not while you scroll past.
+    visObserver = new IntersectionObserver((entries) => {
+      for (const en of entries) {
+        const pg = pages[parseInt(en.target.dataset.page, 10) - 1];
+        pg.visible = en.isIntersecting;
+        clearTimeout(pg.dwell);
+        if (en.isIntersecting) pg.dwell = setTimeout(() => { if (pg.visible) ensureText(pg, true).catch(() => {}); }, 700);
+      }
+    }, { threshold: 0.15 });
 
     for (const pg of pages) {
       const wrap = document.createElement('div');
@@ -970,6 +1153,7 @@
       sizePage(pg);
       pagesEl.appendChild(wrap);
       observer.observe(wrap);
+      visObserver.observe(wrap);
     }
     currentPage = 1;
     pageInput.value = 1;
@@ -977,15 +1161,30 @@
   }
 
   function sizePage(pg) {
-    const vp = pg.page.getViewport({ scale });
-    pg.vp = vp;
-    pg.wrap.style.width = vp.width + 'px';
-    pg.wrap.style.height = vp.height + 'px';
+    pg.vp = pg.base.clone({ scale });
+    pg.wrap.style.width = pg.vp.width + 'px';
+    pg.wrap.style.height = pg.vp.height + 'px';
+  }
+
+  function loadPage(pg) {
+    if (!pg.pageLoad) {
+      pg.pageLoad = pdfDoc.getPage(pg.num).then((page) => {
+        pg.page = page;
+        const b = page.getViewport({ scale: 1 });
+        if (Math.abs(b.width - pg.base.width) > 0.5 || Math.abs(b.height - pg.base.height) > 0.5) {
+          pg.base = b;
+          sizePage(pg);
+        }
+        return page;
+      });
+    }
+    return pg.pageLoad;
   }
 
   async function renderPage(pg) {
-    if (pg.rendered || pg.rendering) return;
+    if (pg.rendered || pg.rendering) return pg.rendering;
     pg.rendering = (async () => {
+      await loadPage(pg);
       const vp = pg.vp;
       const dpr = window.devicePixelRatio || 1;
       pg.canvas.width = Math.floor(vp.width * dpr);
@@ -1032,24 +1231,29 @@
   function needsGemini(pg) {
     if (settings.ocrMode === 'never') return false;
     if (settings.ocrMode === 'always') return true;
-    return pg.garbled || pg.pdfLines.length === 0;
+    return pg.garbled || (pg.pdfLines || []).length === 0;
   }
 
-  function cacheKey(pg) { return 'pvr-ocr:' + pdfId + ':' + pg.num; }
+  const cacheKey = (pg) => 'pvr-ocr:' + pdfId + ':' + pg.num;
 
-  function ensureText(pg) {
+  // ocr=true also waits for / starts Gemini when the page needs it.
+  function ensureText(pg, ocr) {
     if (!pg.textReady) {
-      pg.textReady = pg.page.getTextContent().then((tc) => {
+      pg.textReady = loadPage(pg).then(() => pg.page.getTextContent()).then(async (tc) => {
         pg.rawItems = tc.items.filter((it) => it.str && it.str.trim());
         groupLines(pg);
         pg.garbled = looksGarbled(pg.pdfLines);
-        try { const c = localStorage.getItem(cacheKey(pg)); if (c) { pg.ocr = JSON.parse(c); pg.geminiState = 'done'; } } catch (e) { /* ignore */ }
+        let cached = await idb.get(cacheKey(pg));
+        if (!cached) { try { const c = localStorage.getItem(cacheKey(pg)); if (c) cached = JSON.parse(c); } catch (e) { /* ignore */ } }
+        if (cached) { pg.ocr = cached; pg.geminiState = 'done'; }
         applyLines(pg);
         updateBanner();
       });
     }
     return pg.textReady.then(() => {
-      if (needsGemini(pg) && hasKey() && pg.geminiState !== 'done') return scheduleGemini(pg);
+      if (!ocr || !hasKey() || !needsGemini(pg)) return;
+      if (pg.geminiState === 'idle') return scheduleGemini(pg);
+      if (pg.geminiState === 'pending') return pg.geminiPromise;
     });
   }
 
@@ -1063,9 +1267,8 @@
         const ocr = await geminiReadPage(pg);
         pg.ocr = ocr;
         pg.geminiState = 'done';
-        try { localStorage.setItem(cacheKey(pg), JSON.stringify(ocr)); } catch (e) { /* storage full is fine */ }
+        idb.set(cacheKey(pg), ocr);
         applyLines(pg);
-        pg.linesLaidOut = false;
         if (pg.rendered) layoutLines(pg);
         setBadge(pg, '', false);
       } catch (e) {
@@ -1087,14 +1290,14 @@
     pg.badge.classList.add('show');
   }
 
-  function updateBanner() {
+  function updateBanner(force) {
     if (!pdfDoc) return;
-    const anyGarbled = pages.some((pg) => pg.pdfLines && (pg.garbled || (pg.rendered && pg.pdfLines.length === 0)) && pg.geminiState !== 'done');
+    const anyGarbled = force || pages.some((pg) => pg.pdfLines && (pg.garbled || (pg.rendered && pg.pdfLines.length === 0)) && pg.geminiState !== 'done');
     if (anyGarbled && !hasKey() && settings.ocrMode !== 'never') {
       bannerText.textContent = 'The text inside this PDF is garbled or missing (it was probably made with an old Hindi font, or it is a scan). Gemini can read the pages properly — add a free API key to turn it on.';
       banner.classList.add('show');
     } else if (anyGarbled && hasKey() && settings.ocrMode === 'never') {
-      bannerText.textContent = 'This PDF\u2019s text looks garbled. Gemini reading is switched off in settings.';
+      bannerText.textContent = 'This PDF’s text looks garbled. Gemini reading is switched off in settings.';
       banner.classList.add('show');
     } else {
       banner.classList.remove('show');
@@ -1114,8 +1317,9 @@
         source: 'gemini'
       }));
     } else {
-      pg.lines = pg.pdfLines;
+      pg.lines = pg.pdfLines || [];
     }
+    buildSegs(pg);
     pg.linesLaidOut = false;
   }
 
@@ -1163,9 +1367,10 @@
   function layoutLines(pg) {
     if (pg.linesLaidOut) return;
     pg.textLayer.innerHTML = '';
+    const activeSeg = active && active.p === pg.num ? pg.segs[active.s] : null;
     pg.lines.forEach((L, i) => {
       const d = document.createElement('div');
-      d.className = 'line' + (active && active.p === pg.num && active.i === i ? ' active' : '');
+      d.className = 'line' + (activeSeg && activeSeg.lines.includes(i) ? ' active' : '');
       d.setAttribute('role', 'button');
       d.setAttribute('tabindex', '0');
       d.title = L.text;
@@ -1173,8 +1378,8 @@
       d.style.top = L.top + 'px';
       d.style.width = L.width + 'px';
       d.style.height = L.height + 'px';
-      d.addEventListener('click', () => speakLine(pg.num, i));
-      d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); speakLine(pg.num, i); } });
+      d.addEventListener('click', () => speakSeg(pg.num, L.seg));
+      d.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); speakSeg(pg.num, L.seg); } });
       pg.textLayer.appendChild(d);
     });
     pg.linesLaidOut = true;
@@ -1185,10 +1390,10 @@
     prevBtn.disabled = currentPage <= 1;
     nextBtn.disabled = !pdfDoc || currentPage >= pdfDoc.numPages;
   }
-  function goToPage(n) {
+  function goToPage(n, smooth) {
     if (!pdfDoc) return;
     n = Math.min(Math.max(1, n), pdfDoc.numPages);
-    pages[n - 1].wrap.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    pages[n - 1].wrap.scrollIntoView({ block: 'start', behavior: smooth === false ? 'auto' : 'smooth' });
     currentPage = n;
     pageInput.value = n;
     updatePagerButtons();
@@ -1198,6 +1403,7 @@
   pageInput.addEventListener('change', () => goToPage(parseInt(pageInput.value, 10) || 1));
   pageInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); pageInput.blur(); } });
 
+  let saveTimer = null;
   function trackScroll() {
     if (!pdfDoc || !pages.length) return;
     const mid = window.innerHeight * 0.4;
@@ -1212,6 +1418,8 @@
       currentPage = best;
       if (document.activeElement !== pageInput) pageInput.value = best;
       updatePagerButtons();
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => savePref('pvr-pos:' + pdfId, String(currentPage)), 800);
     }
   }
   let scrollTick = false;
@@ -1223,17 +1431,21 @@
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { if (sheet.classList.contains('show')) hideSheet(); else stop(); return; }
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    const t = e.target.tagName;
+    if (t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA' || e.target.classList.contains('line')) return;
+    if (e.key === ' ' && pdfDoc) { e.preventDefault(); togglePlay(); }
+    else if (e.key === 'ArrowRight' && pdfDoc) step(1);
+    else if (e.key === 'ArrowLeft' && pdfDoc) step(-1);
   });
 
   /* ---------- resize ---------- */
   let resizeTimer = null;
   window.addEventListener('resize', () => {
     syncBarHeight();
-    if (!pdfDoc) return;
+    if (!pdfDoc || !pages.length) return;
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      const newScale = computeScale(pages.map((p) => p.base.width));
+      const newScale = computeScale(pages[0].base.width);
       if (Math.abs(newScale - scale) < 0.001) return;
       scale = newScale;
       for (const pg of pages) {
@@ -1243,7 +1455,7 @@
       }
       for (const pg of pages) {
         const r = pg.wrap.getBoundingClientRect();
-        if (r.bottom > -900 && r.top < window.innerHeight + 900) renderPage(pg);
+        if (r.bottom > -900 && r.top < window.innerHeight + 900) renderPage(pg).catch(() => {});
       }
     }, 200);
   });

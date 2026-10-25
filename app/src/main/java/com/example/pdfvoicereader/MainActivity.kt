@@ -1,8 +1,12 @@
 package com.example.pdfvoicereader
 
 import android.annotation.SuppressLint
+import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
@@ -15,6 +19,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import org.json.JSONArray
@@ -42,9 +47,16 @@ class MainActivity : AppCompatActivity() {
         fileCallback = null
     }
 
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* optional: reading works without the notification */ }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= 33 &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        PlaybackControl.onPause = { runJs("window.__androidTts && window.__androidTts.onPauseRequested()") }
         webView = WebView(this)
         setContentView(webView)
         WebView.setWebContentsDebuggingEnabled((applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
@@ -104,6 +116,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        PlaybackControl.onPause = null
+        stopService(Intent(this, SpeechService::class.java))
         tts?.stop()
         tts?.shutdown()
         webView.destroy()
@@ -178,6 +192,21 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun stop() {
             runOnUiThread { tts?.stop() }
+        }
+
+        /** Starts/stops the foreground service that keeps reading alive with the screen off. */
+        @JavascriptInterface
+        fun setPlaying(playing: Boolean, title: String) {
+            runOnUiThread {
+                val intent = Intent(this@MainActivity, SpeechService::class.java)
+                if (playing) {
+                    try {
+                        ContextCompat.startForegroundService(this@MainActivity, intent.putExtra(SpeechService.EXTRA_TITLE, title))
+                    } catch (e: Exception) { /* e.g. started from background; reading still works while visible */ }
+                } else {
+                    stopService(intent)
+                }
+            }
         }
 
         /** "hi-in-x-hia-local" → "हिन्दी (India) · hia" */

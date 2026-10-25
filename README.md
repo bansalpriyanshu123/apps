@@ -51,7 +51,18 @@ Downloaded voices work offline; the app lists them under *Hindi · हिन्�
 | `app/src/main/assets/index.html` | The entire app UI and logic (same file runs in a browser). |
 | `app/src/main/assets/pdfjs/` | pdf.js, downloaded by the scripts / CI so the app works offline. |
 | `MainActivity.kt` | WebView shell: system file picker + `window.AndroidTTS` bridge to native speech. |
-| `.github/workflows/build-apk.yml` | Builds the APK on GitHub's servers. |
+| `SpeechService.kt` | Foreground service + notification (with Pause) so reading continues with the screen off. |
+| `.github/workflows/main.yml` | Builds the APK on GitHub's servers (Gradle 8.7, JDK 17). |
+
+Build note: this repo has no Gradle wrapper. CI pins Gradle 8.7; Android Studio manages its own. If you build
+with a newer standalone Gradle (9.x) and AGP 8.5.2 fails, use Gradle 8.7 (`gradle wrapper --gradle-version 8.7`).
+
+## Using the player
+
+- ▶ reads from the top of the page you're on; tapping a line starts at that sentence.
+- ⏮ ⏭ jump by sentence (across pages), ■ stops, the speed button cycles 0.75×–2×, ∞ keeps reading until you stop.
+- Reading is sentence-by-sentence, so intonation stays natural across line breaks.
+- The app remembers the page you were on for each PDF. Gemini-read pages are cached in IndexedDB.
 
 The page detects `window.AndroidTTS` and uses it when present; in a normal browser it falls back to the Web Speech API.
 To change the UI, edit `index.html` and rebuild — no Kotlin changes needed.

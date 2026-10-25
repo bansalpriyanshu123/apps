@@ -231,7 +231,6 @@ class MainActivity : AppCompatActivity() {
             return arr.toString()
         }
 
-        @JavascriptInterface
         /**
          * flush=true: a fresh start (tap, ▶, ⏮ ⏭) - drop whatever is playing and begin with a short silence so the
          * first syllable isn't clipped while the audio route wakes up.

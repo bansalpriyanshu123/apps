@@ -9,7 +9,7 @@ const SAVE_DELAY_MS = 800;
 
 export function updatePagerButtons() {
   el.prevPage.disabled = state.currentPage <= 1;
-  el.nextPage.disabled = !state.pdfDoc || state.currentPage >= state.pdfDoc.numPages;
+  el.nextPage.disabled = !state.doc || state.currentPage >= state.doc.numPages;
 }
 
 /** Shows the control for a freshly opened document. */
@@ -23,8 +23,8 @@ export function showPager(totalPages) {
 }
 
 export function goToPage(n, smooth) {
-  if (!state.pdfDoc) return;
-  n = Math.min(Math.max(1, n), state.pdfDoc.numPages);
+  if (!state.doc) return;
+  n = Math.min(Math.max(1, n), state.doc.numPages);
   state.pages[n - 1].wrap.scrollIntoView({ block: 'start', behavior: smooth === false ? 'auto' : 'smooth' });
   state.currentPage = n;
   el.pageInput.value = n;
@@ -35,7 +35,7 @@ let saveTimer = null;
 
 /** Works out which page is nearest the middle of the screen; updates the control and saves the position. */
 export function trackScroll() {
-  if (!state.pdfDoc || !state.pages.length) return;
+  if (!state.doc || !state.pages.length) return;
   const middle = window.innerHeight * 0.4;
   let best = state.currentPage;
   let bestDistance = Infinity;
@@ -51,9 +51,9 @@ export function trackScroll() {
   if (document.activeElement !== el.pageInput) el.pageInput.value = best;
   updatePagerButtons();
   clearTimeout(saveTimer);
-  const pdfAtScroll = state.pdfId;
+  const pdfAtScroll = state.docId;
   saveTimer = setTimeout(() => {
-    if (pdfAtScroll === state.pdfId) savePref(PREF.position(pdfAtScroll), String(best));
+    if (pdfAtScroll === state.docId) savePref(PREF.position(pdfAtScroll), String(best));
   }, SAVE_DELAY_MS);
 }
 

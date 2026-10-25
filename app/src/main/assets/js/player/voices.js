@@ -58,7 +58,7 @@ export function loadVoices() {
     || hindi[0] || gemini[0] || state.voices[0];
   if (choice) el.voice.value = choice.id;
 
-  if (!hindi.length && !gemini.length && !state.pdfDoc) {
+  if (!hindi.length && !gemini.length && !state.doc) {
     setNotice('No Hindi voice is installed on this device yet. On Android, install Hindi in Google Text-to-speech, ' +
       'or add a Gemini key under ⚙ for online voices.', false);
   }

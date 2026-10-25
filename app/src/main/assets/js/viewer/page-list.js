@@ -17,6 +17,14 @@ let dwellObserver = null;
 
 const pageOf = (entry) => state.pages[parseInt(entry.target.dataset.page, 10) - 1];
 
+/** Forgets the PDF pages (stops watching them) so another kind of document can take over the page list. */
+export function clearPdfPages() {
+  if (drawObserver) drawObserver.disconnect();
+  if (dwellObserver) dwellObserver.disconnect();
+  el.pages.innerHTML = '';
+  state.pages = [];
+}
+
 function createPageBox(pg) {
   const wrap = document.createElement('div');
   wrap.className = 'page-wrap';
@@ -36,21 +44,19 @@ function createPageBox(pg) {
   return wrap;
 }
 
-/** Replaces the page list with one for state.pdfDoc. Only page 1 is read up front; the rest are placeholders. */
+/** Replaces the page list with one for state.doc. Only page 1 is read up front; the rest are placeholders. */
 export async function buildPages() {
-  if (drawObserver) drawObserver.disconnect();
-  if (dwellObserver) dwellObserver.disconnect();
-  el.pages.innerHTML = '';
-  state.pages = [];
+  clearPdfPages();
 
-  const first = await state.pdfDoc.getPage(1);
+  const first = await state.doc.getPage(1);
   const base = first.getViewport({ scale: 1 });
   state.scale = computeScale(base.width);
-  for (let n = 1; n <= state.pdfDoc.numPages; n++) state.pages.push(createPage(n, first, base));
+  for (let n = 1; n <= state.doc.numPages; n++) state.pages.push(createPage(n, first, base));
 
   drawObserver = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       const pg = pageOf(entry);
+      if (!pg) continue;
       if (entry.isIntersecting) renderPage(pg).catch(() => {}); else unrenderPage(pg);
     }
   }, { rootMargin: DRAW_MARGIN });
@@ -59,6 +65,7 @@ export async function buildPages() {
   dwellObserver = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       const pg = pageOf(entry);
+      if (!pg) continue;
       pg.visible = entry.isIntersecting;
       clearTimeout(pg.dwell);
       if (entry.isIntersecting) {

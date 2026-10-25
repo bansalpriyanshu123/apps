@@ -16,10 +16,11 @@ import { loadPage } from './page-model.js';
 import { refreshBanner } from '../ui/banner.js';
 import { setNotice } from '../ui/notice.js';
 
-const cacheKey = (pg) => OCR_KEY_PREFIX + state.pdfId + ':' + pg.num;
+const cacheKey = (pg) => OCR_KEY_PREFIX + state.docId + ':' + pg.num;
 
 /** Should this page's text come from Gemini under the current settings? */
 export function needsGemini(pg) {
+  if (pg.kind === 'docx') return false;
   if (settings.ocrMode === 'never') return false;
   if (settings.ocrMode === 'always') return true;
   return pg.garbled || pg.damaged || (pg.pdfLines || []).length === 0;
@@ -143,8 +144,9 @@ function scheduleGemini(pg) {
 /** Re-evaluates which pages should come from Gemini whenever the settings change. */
 export function initPageText() {
   on('settings:saved', () => {
-    if (!state.pdfDoc) return;
+    if (!state.doc) return;
     for (const pg of state.pages) {
+      if (pg.kind === 'docx') continue;                    // Word text never changes with these settings
       if (pg.geminiState === 'error') pg.geminiState = 'idle';
       if (!pg.textReady) continue;
       pg.textReady.then(() => {

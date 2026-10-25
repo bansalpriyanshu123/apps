@@ -44,20 +44,24 @@ function setActive(p, s, from) {
 }
 
 function blockedMessage(pg) {
+  if (pg.kind === 'docx') {
+    return 'This Word file uses an old Hindi font (such as Kruti Dev), so its text is not real Hindi and cannot be read aloud. ' +
+      'In Word, re-type or convert it with a Unicode font (Mangal, Nirmala UI, Noto Sans Devanagari) and open it again.';
+  }
   if (!hasKey()) return 'Page ' + pg.num + ' has garbled text (old Hindi font). Add a Gemini key under ⚙ so it can be read properly.';
   if (settings.ocrMode === 'never') return 'Page ' + pg.num + ' has garbled text and Gemini reading is switched off in settings.';
   if (pg.geminiState === 'error') return 'Gemini could not read page ' + pg.num + '. Tap the page text to retry.';
   return 'Page ' + pg.num + ' has garbled text.';
 }
 
-const usingPdfText = (pg) => !pg.lines.length || pg.lines[0].source === 'pdf';
+const usingPdfText = (pg) => !pg.lines.length || pg.lines[0].source !== 'gemini';
 
 /**
  * Finds the page / sentence to speak, loading text (and Gemini OCR) as needed, walking over empty pages and across
  * page boundaries. Resolves to null if the request went stale or the page is unreadable garbage.
  */
 async function locate(p, s, myToken) {
-  while (p >= 1 && p <= state.pdfDoc.numPages) {
+  while (p >= 1 && p <= state.doc.numPages) {
     const pg = state.pages[p - 1];
     if (myToken === token && !pg.textReady) showPreparing(p);
     await ensureText(pg, true);
@@ -81,14 +85,14 @@ async function locate(p, s, myToken) {
  * @param fromIdx  start that many lines into the sentence (a tap on a line in the middle of one)
  */
 export async function speakSentence(p, s, auto, fromIdx) {
-  if (!state.pdfDoc) return;
+  if (!state.doc) return;
   const myToken = ++token;
   cancelJob();
   if (!auto) stopAudio();
   state.playing = true;
   renderState();
 
-  const requested = state.pages[Math.min(Math.max(p, 1), state.pdfDoc.numPages) - 1];
+  const requested = state.pages[Math.min(Math.max(p, 1), state.doc.numPages) - 1];
   if (requested.geminiState === 'error') requested.geminiState = 'idle';     // a tap is an explicit retry
 
   let position;
@@ -157,7 +161,7 @@ export function stop() {
 }
 
 export function togglePlay() {
-  if (!state.pdfDoc) { el.fileInput.click(); return; }
+  if (!state.doc) { el.fileInput.click(); return; }
   if (state.playing) pause();
   else if (state.resumePos) speakSentence(state.resumePos.p, state.resumePos.s, false, state.resumePos.from);
   else speakSentence(state.currentPage, 0);
@@ -165,7 +169,7 @@ export function togglePlay() {
 
 /** Previous / next sentence (dir = -1 / +1). With nothing playing yet, starts from the top of the current page. */
 export function step(dir) {
-  if (!state.pdfDoc) return;
+  if (!state.doc) return;
   const base = state.active || state.resumePos;
   if (!base) { speakSentence(state.currentPage, 0); return; }
   speakSentence(base.p, base.s + dir);

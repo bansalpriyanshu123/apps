@@ -21,6 +21,21 @@ export function computeScale(baseWidth) {
   return Math.min(fitWidth / baseWidth, MAX_FIT_SCALE) * state.zoom;
 }
 
+/** Re-fits PDF pages to the screen when it changes size (rotating the phone, resizing a window). */
+export function initLayout() {
+  let timer = null;
+  window.addEventListener('resize', () => {
+    if (state.docKind !== 'pdf' || !state.pages.length) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const scale = computeScale(state.pages[0].base.width);
+      if (Math.abs(scale - state.scale) < 0.001) return;
+      state.scale = scale;
+      relayout();
+    }, 200);
+  });
+}
+
 /** New scale: resize every page, rebuild line boxes, and (unless asked not to) redraw the pages near the screen. */
 export function relayout(skipRender) {
   for (const pg of state.pages) {

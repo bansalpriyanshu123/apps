@@ -53,13 +53,21 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module map and design rules.
 | `app/src/main/assets/index.html` | The page's markup only. |
 | `app/src/main/assets/css/` | Styles, split by area (theme, header, viewer, player, settings, responsive). |
 | `app/src/main/assets/js/` | The web app as small ES modules in layers: `core`, `text` (pure logic), `services`, `document`, `viewer`, `player`, `settings`, `app`; `main.js` wires them up. |
-| `app/src/main/assets/pdfjs/` | pdf.js, downloaded by the scripts / CI so the app works offline. |
+| `app/src/main/assets/pdfjs/`, `.../mammoth/` | pdf.js (PDF) and mammoth.js (Word), downloaded by `fetch-pdfjs.sh` / `.bat` and by CI so the app works offline. |
 | `app/src/main/java/.../MainActivity.kt` and friends | The thin Android shell: asset server, file picker, text-to-speech bridge, foreground service. |
 | `web-tests/` | Unit tests for the text logic (`npm test`) and an end-to-end check of the whole app. |
 | `.github/workflows/main.yml` | Runs the unit tests, then builds the APK on GitHub's servers (Gradle 8.7, JDK 17). |
 
 Build note: this repo has no Gradle wrapper. CI pins Gradle 8.7; Android Studio manages its own. If you build
 with a newer standalone Gradle (9.x) and AGP 8.5.2 fails, use Gradle 8.7 (`gradle wrapper --gradle-version 8.7`).
+
+## Supported files
+
+* **PDF**: every page is drawn; tap a line to read from it. PDFs whose text layer is broken (old Hindi fonts, lost matras)
+  are repaired from the page's glyphs, or read from the page picture with Gemini (see ARCHITECTURE.md).
+* **Word (.docx)**: shown as text parts; tap any sentence to read from it, the sentence being read is highlighted. Zoom
+  changes the text size. Old `.doc` files: open them in Word and Save As `.docx` first. Text typed in an old non-Unicode
+  Hindi font (Kruti Dev) cannot be read; re-save it with a Unicode font such as Mangal.
 
 ## Using the player
 

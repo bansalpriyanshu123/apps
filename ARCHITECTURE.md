@@ -1,6 +1,6 @@
 # Architecture
 
-PDF Voice Reader is a small Android shell around a web app. The shell serves the web files, opens the file picker and
+PDF Voice Reader (it also opens Word .docx files) is a small Android shell around a web app. The shell serves the web files, opens the file picker and
 exposes Android's text-to-speech; **everything the user sees and does is the web app**, which also runs in a desktop
 browser.
 
@@ -25,13 +25,13 @@ folder under `app/src/main/assets/js/`.
 | Layer | Folder | Responsibility | May import |
 |---|---|---|---|
 | Entry | `main.js` | Calls every feature's `init…()` in order. The only file that knows all features. | everything |
-| App flows | `app/` | Opening a PDF (`open-pdf`), keyboard shortcuts (`keyboard`). | player, viewer, settings, services, ui, core |
+| App flows | `app/` | Opening a file (`open-file`: PDF or Word), keyboard shortcuts (`keyboard`). | player, viewer, settings, services, ui, core |
 | Features | `player/` | Reading aloud: `playback` (state machine), `controls` (buttons, speed), `voices`, `now-bar` (view). | document, viewer/highlight, services, text, ui, core |
-| | `viewer/` | The scrolling pages: `page-list`, `renderer`, `layout`, `zoom`, `pager`, `line-layer`, `highlight`, `page-badge`. | document, core |
+| | `viewer/` | The scrolling pages: `page-list`, `renderer`, `layout`, `zoom`, `pager`, `line-layer`, `highlight`, `page-badge` (PDF) and `docx-view` (Word). | document, text, core |
 | | `settings/` | The settings sheet. | player/controls+voices, services, ui, core |
 | Document | `document/` | `page-model` (a page record), `page-text` (which lines a page uses: PDF text or Gemini). **No DOM.** | services, text, ui/banner+notice, core |
-| Services | `services/` | Talking to the outside world: pdf.js, Gemini (text, OCR, voices), device speech, `glyph-kinds` (what each lost glyph on a page really is). | text, core |
-| Text logic | `text/` | **Pure functions** (no DOM, no state, unit-tested): `devanagari` (repair rules, garbled-text detection, spacing), `lost-glyphs` (putting back र् / ि / ी / ो once their kind is known), `devanagari-chars`, `line-grouping`, `sentences`, `ocr-parse`. | – |
+| Services | `services/` | Talking to the outside world: pdf.js, mammoth (Word), Gemini (text, OCR, voices), device speech, `glyph-kinds` (what each lost glyph on a page really is). | text, core |
+| Text logic | `text/` | **Pure functions** (no DOM, no state, unit-tested): `devanagari` (repair rules, garbled-text detection, spacing), `lost-glyphs` (putting back र् / ि / ी / ो once their kind is known), `devanagari-chars`, `line-grouping`, `sentences` (PDF lines -> sentences), `sentence-split` (Word text -> sentences), `ocr-parse`. | – |
 | UI leaves | `ui/` | Small shared views: `notice`, `banner`, `theme`, `header`. | core |
 | Core | `core/` | `config` (constants), `state` (the one shared state object), `store` (preferences), `ocr-cache` (IndexedDB), `bus` (events), `dom` (element lookup), `util`. | – |
 
@@ -51,7 +51,7 @@ Lower layers must not know about higher ones, so they announce things on `core/b
 
 ### State
 
-`core/state.js` is the single shared mutable object (document, pages, zoom, playback). Each field has a named owner
+`core/state.js` is the single shared mutable object (document, pages, zoom, playback). `state.doc` is the open document and `state.docKind` says what it is (`'pdf'` or `'docx'`); a page record carries the same `kind`, and everything that is PDF-specific (canvases, viewports, Gemini) checks it. Each field has a named owner
 in the file; other modules read it but change only what they own. Preferences that must survive a restart go through
 `core/store.js` (`localStorage`); the Gemini read-page cache is in IndexedDB (`core/ocr-cache.js`).
 
@@ -91,6 +91,25 @@ Alternatives that were tried or considered:
 * *Matching a glyph's shape against known vowel signs* was unreliable (ी, ा and ो overlap too much); the ink-left test
   above is the one feature that separated them.
 
+## Word (.docx) files
+
+A Word file is not a stack of drawn pages, so it has its own viewer, but it reuses the whole player (sentences, voices,
+speed, continue-reading, pause / stop, the now-playing bar), the pager, zoom, dark mode and saved position.
+
+```
+open-file -> services/docx-engine (mammoth.js: .docx -> HTML) -> viewer/docx-view.buildDocxPages
+   HTML is cut into "parts" (~30 blocks each) that act as pages; every sentence of every paragraph / heading / list item /
+   table cell (text/sentence-split) gets a DOM Range. page record: kind 'docx', lines = sentences, segs 1:1.
+tap -> caret position -> the sentence whose Range contains it -> bus line:tap -> player/playback (unchanged)
+reading -> viewer/highlight -> CSS Custom Highlight API (::highlight(reading)) on that Range
+zoom = font size (--docx-zoom), dark mode = the app theme variables; no canvas, no OCR, no glyph repair
+```
+
+Word text is real Unicode, so the PDF text repair and Gemini never run for it. Limits: old `.doc` files are not supported
+(save as `.docx`); text in an old non-Unicode Hindi font (Kruti Dev, Chanakya) is detected by the same garbled-text check and
+refused with a message instead of being mispronounced; images are shown but not described; headers, footers and footnotes
+are not part of mammoth's output.
+
 ## Design rules this code follows
 
 1. **One job per module**, named after that job. Pure logic is separated from DOM and from I/O so it can be tested.
@@ -119,7 +138,7 @@ Alternatives that were tried or considered:
 | What | How | Needs |
 |---|---|---|
 | Pure text logic (`text/`) and the architecture rules | `npm test` (Node's built-in test runner, `web-tests/unit/`) | Node 22 |
-| The whole web app | `node web-tests/e2e/run.mjs <pdf> all` (boot, open, render, tap, pause/stop, zoom + pinch, pinned header, dark pages, settings, console errors) | Chrome, or a USB-debugging phone; see the header of the file |
+| The whole web app | `node web-tests/e2e/run.mjs <pdf> all` (boot, open, render, text quality, tap, pause/stop, zoom + pinch, pinned header, dark pages, settings, the Word file `web-tests/fixtures/sample.docx`, console errors) | Chrome, or a USB-debugging phone; see the header of the file |
 | Android build | GitHub Actions (`.github/workflows/main.yml`) | – |
 
 ## Adding things

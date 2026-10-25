@@ -1,21 +1,24 @@
 // End-to-end check of the whole web app through the Chrome DevTools protocol: boot, open a PDF, render, text quality
 // (no lost-glyph placeholders, expected Hindi words), tap a line, pause / stop, zoom (buttons + pinch), pinned header,
-// dark pages, settings, and "no console errors". Needs Node 22 (built-in WebSocket) and a PDF to open.
+// dark pages, settings, a Word file (parts, tap a sentence, highlight, zoom, dark, paging), and "no console errors".
+// Needs Node 22 (built-in WebSocket) and a PDF to open; the Word steps use DOCX=web-tests/fixtures/sample.docx.
 //
 // A) Desktop Chrome (no phone needed):
 //    1. python -m http.server 8765 --bind 127.0.0.1        (run inside app/src/main/assets)
-//    2. chrome --headless=new --remote-debugging-port=9333 --user-data-dir=<temp dir> about:blank
+//    2. chrome --headless=new --remote-debugging-port=9333 --user-data-dir=<temp dir> --autoplay-policy=no-user-gesture-required about:blank
 //    3. node web-tests/e2e/run.mjs <file.pdf> all
 //
 // B) The real app on a USB-debugging phone, using the web files from this checkout instead of the installed ones
 //    (no rebuild needed; speech goes through the real Android bridge):
 //    1. install the app, open it, keep the screen on (adb shell svc power stayon usb)
 //    2. adb forward tcp:9222 localabstract:webview_devtools_remote_<pid of the app>
-//    3. PORT=9222 URL=https://appassets.androidapp.com/assets/index.html EMULATE=0 //         INJECT_DIR=app/src/main/assets node web-tests/e2e/run.mjs <file.pdf> all
+//    3. PORT=9222 URL=https://appassets.androidapp.com/assets/index.html EMULATE=0 INJECT_DIR=app/src/main/assets \
+//         node web-tests/e2e/run.mjs <file.pdf> all
 //
-// steps: smoke | text | tap | zoom | dark | settings | all
+// steps: smoke | text | tap | zoom | dark | settings | docx | all
 // env:   PORT, URL, EMULATE, INJECT_DIR, INJECT_WAIT (ms), OUT (screenshot folder),
-//        TEXT_PAGES (how many pages the text step reads, default 10), EXPECT_WORDS (comma separated words that must appear)
+//        TEXT_PAGES (how many pages the text step reads, default 10), EXPECT_WORDS (comma separated words that must appear),
+//        DOCX (path of a .docx for the docx step)
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -64,6 +67,8 @@ const shot = async (name) => {
 
 await send('Runtime.enable');
 await send('Log.enable');
+await send('Network.enable');
+await send('Network.setCacheDisabled', { cacheDisabled: true });   // always run the current files
 await send('Page.enable');
 if (EMULATE) {
   await send('Emulation.setDeviceMetricsOverride', { width: 412, height: 860, deviceScaleFactor: 2, mobile: true });
@@ -165,7 +170,7 @@ if (steps.includes('text') || steps.includes('all')) {
     for (let p = 1; p <= ${pagesToScan}; p++) { const w = document.querySelector('.page-wrap[data-page="' + p + '"]'); if (!w) break;
       w.scrollIntoView({ block: 'start' }); await new Promise(r => setTimeout(r, 700)); out.push(...[...w.querySelectorAll('.line')].map(l => l.title)); }
     window.scrollTo(0, 0); return JSON.stringify(out); })()`));
-  const leftovers = lines.filter((l) => /[ �-]/.test(l));
+  const leftovers = lines.filter((l) => /[\x00\uFFFD\uE010-\uE014]/.test(l));
   ok('text: no lost-glyph placeholders left in the first pages', lines.length > 0 && leftovers.length === 0, leftovers.slice(0, 3));
   const expected = (process.env.EXPECT_WORDS || '').split(',').map((w) => w.trim()).filter(Boolean);
   const missing = expected.filter((w) => !lines.some((l) => l.includes(w)));
@@ -250,14 +255,77 @@ if (steps.includes('settings') || steps.includes('all')) {
     const out = { opened, closedAfterSave: !document.getElementById('sheet').classList.contains('show'),
       dot: document.getElementById('settingsBtn').classList.contains('dot'), cont: document.getElementById('contBtn').getAttribute('aria-pressed'),
       keyStored: localStorage.getItem('pvr-gemini-key') === 'AIzaFAKEKEYFORTEST', geminiVoices: [...document.getElementById('voice').options].filter(o => /^Kore|Puck/.test(o.textContent)).length };
-    // undo
-    localStorage.removeItem('pvr-gemini-key'); localStorage.setItem('pvr-cont', '1');
+    // undo through the sheet itself, so the in-memory settings are reset too (a fake key must not stay active)
+    document.getElementById('settingsBtn').click(); await new Promise(r => setTimeout(r, 300));
+    document.getElementById('apiKey').value = ''; document.getElementById('contMode').value = '1';
+    document.getElementById('saveSettings').click(); await new Promise(r => setTimeout(r, 300));
     return JSON.stringify(out); })()`));
   ok('settings: sheet opens, saves, closes; key + continue switch applied', s.opened && s.closedAfterSave && s.dot && s.cont === 'false' && s.keyStored && s.geminiVoices >= 2, s);
 }
 
+if ((steps.includes('docx') || steps.includes('all')) && process.env.DOCX) {
+  const docxB64 = fs.readFileSync(process.env.DOCX).toString('base64');
+  const opened = JSON.parse(await evaluate(`(async () => {
+    const bin = atob('${docxB64}'); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    const dt = new DataTransfer();
+    dt.items.add(new File([u], 'sample.docx', { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+    const input = document.getElementById('fileInput'); input.files = dt.files; input.dispatchEvent(new Event('change'));
+    for (let i = 0; i < 40 && !document.querySelector('.docx-section'); i++) await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 800));
+    const secs = [...document.querySelectorAll('.docx-section')];
+    return JSON.stringify({ sections: secs.length, total: document.getElementById('pageTotal').textContent, mode: document.getElementById('pages').classList.contains('docx-mode'),
+      heading: (secs[0] && secs[0].querySelector('h1') || {}).textContent, cells: secs[0] ? [...secs[0].querySelectorAll('td')].map(c => c.textContent) : [],
+      notice: document.getElementById('notice').textContent, canvases: document.querySelectorAll('.page-wrap canvas').length }); })()`));
+  ok('docx: opens as several parts with heading and table', opened.sections >= 2 && String(opened.sections) === opened.total && opened.mode && opened.heading === 'भारतीय राजव्यवस्था (नमूना)' && opened.cells.length === 4 && opened.canvases === 0, opened);
+
+  const tap = JSON.parse(await evaluate(`(async () => {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+    const para = [...document.querySelectorAll('.docx-section p')].find(p => p.textContent.includes('संविधान सर्वोच्च विधि है।'));
+    para.scrollIntoView({ block: 'center' }); await wait(500);
+    // find the on-screen position of the second sentence and click exactly there
+    const walker = document.createTreeWalker(para, NodeFilter.SHOW_TEXT); const node = walker.nextNode();
+    const start = node.data.indexOf('संविधान'); const range = document.createRange(); range.setStart(node, start + 3); range.setEnd(node, start + 6);
+    const r = range.getBoundingClientRect(); const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    document.elementFromPoint(x, y).dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: x, clientY: y }));
+    await wait(1200);
+    const hl = window.CSS && CSS.highlights && CSS.highlights.get('reading');
+    const out = { playing: document.getElementById('now').classList.contains('playing'), nowText: document.getElementById('nowText').textContent,
+      highlighted: hl ? [...hl].map(rg => rg.toString()) : null, meta: document.getElementById('nowMeta').textContent };
+    document.getElementById('playBtn').click(); await wait(400);
+    out.pausedPlaying = document.getElementById('now').classList.contains('playing');
+    document.getElementById('stopBtn').click(); await wait(300);
+    out.afterStop = window.CSS && CSS.highlights ? CSS.highlights.has('reading') : null;
+    return JSON.stringify(out); })()`));
+  ok('docx: tapping a sentence reads exactly that sentence and highlights it', tap.playing && tap.nowText === 'संविधान सर्वोच्च विधि है।' && JSON.stringify(tap.highlighted) === JSON.stringify(['संविधान सर्वोच्च विधि है।']), tap);
+  ok('docx: pause and stop work, highlight removed', tap.pausedPlaying === false && tap.afterStop === false, tap);
+
+  const view = JSON.parse(await evaluate(`(async () => {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms)); const sec = () => document.querySelector('.docx-section');
+    window.scrollTo(0, 0); await wait(300);
+    const size0 = parseFloat(getComputedStyle(sec()).fontSize); const scrollW0 = document.documentElement.scrollWidth;
+    document.getElementById('zoomIn').click(); document.getElementById('zoomIn').click(); await wait(600);
+    const size1 = parseFloat(getComputedStyle(sec()).fontSize); const scrollW1 = document.documentElement.scrollWidth;
+    document.getElementById('zoomVal').click(); await wait(400);
+    const light = getComputedStyle(sec()).backgroundColor; document.getElementById('darkBtn').click(); await wait(500);
+    const dark = getComputedStyle(sec()).backgroundColor; document.getElementById('darkBtn').click(); await wait(300);
+    document.getElementById('nextBtn').click(); await wait(1200);
+    return JSON.stringify({ size0, size1, scrollW0, scrollW1, light, dark, pageAfterNext: document.getElementById('pageInput').value, zoomLabel: document.getElementById('zoomVal').textContent }); })()`));
+  ok('docx: zoom changes the text size without sideways scrolling', view.size1 > view.size0 * 1.4 && view.scrollW1 <= view.scrollW0 + 2, view);
+  ok('docx: dark mode darkens the text pages', view.light !== view.dark && /^rgb\((\d+)/.exec(view.dark)[1] < 80, view);
+  ok('docx: next page button moves to part 2', view.pageAfterNext === '2', view);
+
+  // a PDF must still open afterwards (switching document kinds)
+  const back = JSON.parse(await evaluate(`(async () => {
+    const bin = atob('${b64}'); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    const dt = new DataTransfer(); dt.items.add(new File([u], 'test.pdf', { type: 'application/pdf' }));
+    const input = document.getElementById('fileInput'); input.files = dt.files; input.dispatchEvent(new Event('change'));
+    await new Promise(r => setTimeout(r, 5000));
+    return JSON.stringify({ pdfPages: document.querySelectorAll('.page-wrap').length, docxLeft: document.querySelectorAll('.docx-section').length, mode: document.getElementById('pages').classList.contains('docx-mode') }); })()`));
+  ok('docx: opening a PDF afterwards works', back.pdfPages > 1 && back.docxLeft === 0 && back.mode === false, back);
+}
+
 ok('no uncaught exceptions', exceptions.length === 0, exceptions);
-const relevantErrors = consoleErrors.filter((e) => !/favicon|fonts.googleapis|ERR_BLOCKED|speech/i.test(e));
+const relevantErrors = consoleErrors.filter((e) => !/favicon|fonts.googleapis|ERR_BLOCKED|speech|generativelanguage\.googleapis/i.test(e));   // generativelanguage: the settings step saves a fake key on purpose
 ok('no console errors', relevantErrors.length === 0, relevantErrors);
 
 console.log(JSON.stringify(report, null, 1));

@@ -9,6 +9,7 @@ import { state } from '../core/state.js';
 export function createPage(num, first, base) {
   return {
     num,
+    kind: 'pdf',
     page: num === 1 ? first : null,          // pdf.js page, once loaded
     base,                                    // unscaled viewport (page 1's size until the real one is known)
     pageLoad: num === 1 ? Promise.resolve(first) : null,
@@ -44,7 +45,7 @@ export function sizePage(pg) {
 /** Fetches the pdf.js page once; adopts the page's real size if it differs from the placeholder. */
 export function loadPage(pg) {
   if (!pg.pageLoad) {
-    pg.pageLoad = state.pdfDoc.getPage(pg.num).then((page) => {
+    pg.pageLoad = state.doc.getPage(pg.num).then((page) => {
       pg.page = page;
       const size = page.getViewport({ scale: 1 });
       if (Math.abs(size.width - pg.base.width) > 0.5 || Math.abs(size.height - pg.base.height) > 0.5) {
@@ -55,4 +56,24 @@ export function loadPage(pg) {
     });
   }
   return pg.pageLoad;
+}
+
+/**
+ * A section of a Word file. Word text is real Unicode and needs no repair or OCR, so a section is ready as soon as
+ * it exists: `lines` holds one entry per sentence and `segs` maps each sentence to itself, which is all the player
+ * needs. The DOM side (ranges, highlighting) is attached by viewer/docx-view.js.
+ */
+export function createDocxPage(num) {
+  return {
+    num,
+    kind: 'docx',
+    lines: [], segs: [],
+    pdfLines: null, ocr: null, rawItems: null,
+    textReady: Promise.resolve(),
+    garbled: false, damaged: false,
+    geminiState: 'done', geminiPromise: null,
+    rendered: true, rendering: null, renderTask: null, gen: 0, wantRender: false,
+    visible: false, dwell: null,
+    wrap: null, canvas: null, textLayer: null, badge: null
+  };
 }

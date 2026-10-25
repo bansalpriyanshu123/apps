@@ -2,7 +2,7 @@
 // at import time, so the order below is the whole start-up sequence. See ARCHITECTURE.md for the module map.
 
 import { initKeyboard } from './app/keyboard.js';
-import { initOpenPdf } from './app/open-pdf.js';
+import { initOpenFile } from './app/open-file.js';
 import { initPageText } from './document/page-text.js';
 import { initControls } from './player/controls.js';
 import { initPlayback } from './player/playback.js';
@@ -13,22 +13,26 @@ import { initHeader } from './ui/header.js';
 import { setNotice } from './ui/notice.js';
 import { initTheme } from './ui/theme.js';
 import { initPageList } from './viewer/page-list.js';
+import { initLayout } from './viewer/layout.js';
 import { initPager } from './viewer/pager.js';
 import { initRenderer } from './viewer/renderer.js';
 import { initZoom } from './viewer/zoom.js';
+import { initDocxView } from './viewer/docx-view.js';
 
 initHeader();
 initTheme();
 initZoom();
 initPager();
 initPageList();
+initLayout();
+initDocxView();
 initRenderer();
 initPageText();
 initVoices();
 initControls();
 initPlayback();
 initSettingsPanel();
-initOpenPdf();
+initOpenFile();
 initKeyboard();
 
 loadPdfEngine().catch(() => {

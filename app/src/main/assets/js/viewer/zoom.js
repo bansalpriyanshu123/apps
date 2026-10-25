@@ -11,6 +11,10 @@ import { clamp } from '../core/util.js';
 import { computeScale, relayout } from './layout.js';
 import { ensureVisibleRendered, rerenderNearby } from './renderer.js';
 import { trackScroll } from './pager.js';
+import { applyDocxZoom } from './docx-view.js';
+
+// PDF pages grow wider than the screen and scroll sideways; Word text just gets bigger and re-wraps.
+const scrollsSideways = () => state.docKind !== 'docx' && state.zoom > 1;
 
 const IDLE_MS = 2500;
 let idleTimer = null;
@@ -19,7 +23,7 @@ function updateZoomUi() {
   el.zoomVal.textContent = Math.round(state.zoom * 100) + '%';
   el.zoomOut.disabled = state.zoom <= ZOOM.min + 0.001;
   el.zoomIn.disabled = state.zoom >= ZOOM.max - 0.001;
-  el.stage.classList.toggle('zoomed', state.zoom > 1);
+  el.stage.classList.toggle('zoomed', scrollsSideways());
   el.zoombar.classList.remove('idle');
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => el.zoombar.classList.add('idle'), IDLE_MS);
@@ -28,7 +32,7 @@ function updateZoomUi() {
 /** Shows the zoom control for a freshly opened document. */
 export function showZoomControl() {
   el.zoombar.classList.add('show');
-  el.stage.classList.toggle('zoomed', state.zoom > 1);
+  el.stage.classList.toggle('zoomed', scrollsSideways());
 }
 
 /** Zooms, keeping the point under (anchorX, anchorY) where it is on screen. */
@@ -36,8 +40,15 @@ export function setZoom(requested, anchorX, anchorY) {
   const zoom = clamp(Math.round(requested * 100) / 100, ZOOM.min, ZOOM.max);
   if (anchorX == null) anchorX = window.innerWidth / 2;
   if (anchorY == null) anchorY = window.innerHeight * 0.4;
-  if (!state.pdfDoc || !state.pages.length) { state.zoom = zoom; updateZoomUi(); return; }
+  if (!state.doc || !state.pages.length) { state.zoom = zoom; updateZoomUi(); return; }
   if (zoom === state.zoom) { updateZoomUi(); return; }
+  if (state.docKind === 'docx') {
+    state.zoom = zoom;
+    savePref(PREF.zoom, String(zoom));
+    applyDocxZoom();
+    updateZoomUi();
+    return;
+  }
 
   // remember which spot of which page is under the anchor
   let anchor = null;
@@ -79,7 +90,7 @@ function initPinch() {
   const distance = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
 
   document.addEventListener('touchstart', (event) => {
-    if (event.touches.length !== 2 || !state.pdfDoc) return;
+    if (event.touches.length !== 2 || !state.doc) return;
     const [a, b] = event.touches;
     pinch = { d0: distance(a, b) || 1, z0: state.zoom, k: 1, x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 };
     const rect = el.pages.getBoundingClientRect();
@@ -113,12 +124,12 @@ export function initZoom() {
   el.zoomIn.addEventListener('click', () => zoomBy(ZOOM.step));
   el.zoomOut.addEventListener('click', () => zoomBy(-ZOOM.step));
   el.zoomVal.addEventListener('click', () => setZoom(1));
-  window.addEventListener('scroll', () => { if (state.pdfDoc) updateZoomUi(); }, { passive: true });
+  window.addEventListener('scroll', () => { if (state.doc) updateZoomUi(); }, { passive: true });
   initPinch();
 
   // Ctrl + wheel (desktop browsers)
   document.addEventListener('wheel', (event) => {
-    if (!event.ctrlKey || !state.pdfDoc) return;
+    if (!event.ctrlKey || !state.doc) return;
     event.preventDefault();
     setZoom(state.zoom * (event.deltaY < 0 ? 1.1 : 1 / 1.1), event.clientX, event.clientY);
   }, { passive: false });

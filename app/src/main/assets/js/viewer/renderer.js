@@ -15,6 +15,7 @@ const NEAR_MARGIN = 900;               // draw pages within this many px of the 
 const REPAIR_MARGIN = 300;
 
 export function renderPage(pg) {
+  if (pg.kind === 'docx') return Promise.resolve();      // Word sections are ordinary HTML, nothing to draw
   pg.wantRender = true;
   if (pg.rendered) { pg.wantRender = false; return Promise.resolve(); }
   if (pg.rendering) return pg.rendering;
@@ -72,6 +73,7 @@ function invertCanvas(ctx, canvas) {
 }
 
 export function unrenderPage(pg) {
+  if (pg.kind === 'docx') return;
   pg.gen++;
   pg.wantRender = false;
   if (pg.renderTask) { try { pg.renderTask.cancel(); } catch (err) { /* already finished */ } }
@@ -90,7 +92,7 @@ export function rerenderNearby() {
 
 /** Safety net: a page that is on (or just next to) the screen but neither drawn nor being drawn gets drawn. */
 export function ensureVisibleRendered() {
-  if (!state.pdfDoc || !state.pages.length) return;
+  if (!state.doc || !state.pages.length) return;
   for (const pg of state.pages) {
     if (pg.rendered || pg.rendering) continue;
     const rect = pg.wrap.getBoundingClientRect();
@@ -105,7 +107,7 @@ export function initRenderer() {
     settleTimer = setTimeout(ensureVisibleRendered, 200);
   }, { passive: true });
 
-  on('theme:dark', () => { if (state.pdfDoc && state.pages.length) rerenderNearby(); });
+  on('theme:dark', () => { if (state.doc && state.pages.length) rerenderNearby(); });
   // new lines for a page that is already on screen: lay out its tappable boxes again
   on('page:lines-changed', (pg) => { if (pg.rendered) layoutLines(pg); });
 }

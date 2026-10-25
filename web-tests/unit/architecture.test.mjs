@@ -15,7 +15,7 @@ const ALLOWED = {
   ui: ['core'],
   services: ['core', 'text'],
   document: ['core', 'services', 'text', 'ui'],
-  viewer: ['core', 'document'],
+  viewer: ['core', 'document', 'text'],
   player: ['core', 'document', 'services', 'text', 'ui', 'viewer'],
   settings: ['core', 'player', 'services', 'ui'],
   app: ['core', 'document', 'player', 'services', 'settings', 'ui', 'viewer'],

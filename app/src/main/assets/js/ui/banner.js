@@ -19,7 +19,7 @@ function show(text) {
 
 /** @param force  show the "garbled" message even if no page has been inspected yet (a tap on a garbled page) */
 export function refreshBanner(force) {
-  if (!state.pdfDoc) return;
+  if (!state.doc) return;
   const notDone = (pg) => pg.geminiState !== 'done';
   const anyGarbled = force || state.pages.some((pg) =>
     pg.pdfLines && (pg.garbled || (pg.rendered && pg.pdfLines.length === 0)) && notDone(pg));

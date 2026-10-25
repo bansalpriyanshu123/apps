@@ -18,7 +18,7 @@ export function initKeyboard() {
     }
     const tag = event.target.tagName;
     if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || event.target.classList.contains('line')) return;
-    if (!state.pdfDoc) return;
+    if (!state.doc) return;
 
     if (event.key === ' ') { event.preventDefault(); togglePlay(); }
     else if (event.key === '+' || event.key === '=') zoomBy(ZOOM.step);

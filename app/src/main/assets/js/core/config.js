@@ -6,6 +6,9 @@ export const IN_ANDROID_APP = location.hostname === 'appassets.androidapp.com';
 export const PDFJS_VERSION = '3.11.174';
 export const PDFJS_CDN = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${PDFJS_VERSION}/`;
 
+export const MAMMOTH_VERSION = '1.8.0';   // reads Word (.docx) files
+export const MAMMOTH_CDN = `https://cdn.jsdelivr.net/npm/mammoth@${MAMMOTH_VERSION}/mammoth.browser.min.js`;
+
 export const GEMINI_API_ROOT = 'https://generativelanguage.googleapis.com/v1beta/';
 export const DEFAULT_TEXT_MODEL = 'gemini-3.8-flash';
 export const DEFAULT_TTS_MODEL = 'gemini-3.8-flash-tts';
@@ -31,7 +34,7 @@ export const PREF = {
   zoom: 'pvr-zoom',
   dark: 'pvr-dark',
   voice: 'pvr-voice',
-  position: (pdfId) => 'pvr-pos:' + pdfId
+  position: (docId) => 'pvr-pos:' + docId
 };
 
 /** Prefix of OCR cache keys ("pvr-ocr:<pdf id>:<page>"). Old versions kept them in localStorage; now IndexedDB. */

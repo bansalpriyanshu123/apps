@@ -37,7 +37,7 @@ test('the screen-order fix only applies when the PDF is known to need it', () =>
 test('placeholders are detected and never survive repair', () => {
   assert.equal(hasLostGlyphs([{ str: 'abc' }, { str: NUL + 'व' }]), true);
   assert.equal(hasLostGlyphs([{ str: 'सामान्य' }]), false);
-  assert.ok(!/[\x00�]/.test(repairItem('a' + NUL + 'b�' + NUL, true)));
+  assert.ok(!/[\x00\uFFFD]/.test(repairItem('a' + NUL + 'b\uFFFD' + NUL, true)));
 });
 
 test('no space is inserted inside a word, only between words', () => {

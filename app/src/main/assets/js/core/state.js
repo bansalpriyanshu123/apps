@@ -2,11 +2,12 @@
 // (the owner is noted next to each field).
 
 export const state = {
-  // --- document (owner: app/open-pdf, viewer/page-list) ---
-  pdfDoc: null,            // pdf.js document
-  pdfId: '',               // "name:size:pages" - identifies a PDF for the caches and the saved position
-  pages: [],               // page records, see document/page-model.js
-  scale: 1,                // CSS pixels per PDF point (fit-to-width x zoom)
+  // --- document (owner: app/open-file, viewer/page-list, viewer/docx-view) ---
+  doc: null,               // the open document: a pdf.js document, or { numPages, destroy() } for a Word file
+  docKind: null,           // 'pdf' | 'docx'
+  docId: '',               // "name:size:pages" - identifies the file for the caches and the saved position
+  pages: [],               // page records (a PDF page, or a section of a Word file), see document/page-model.js
+  scale: 1,                // PDF only: CSS pixels per PDF point (fit-to-width x zoom)
   currentPage: 1,          // page nearest the middle of the screen (viewer/pager)
   docVisualOrder: false,   // text layer is in screen order (text/devanagari.js); set once a lossy page is seen
 

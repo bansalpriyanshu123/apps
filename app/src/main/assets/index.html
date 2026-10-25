@@ -10,9 +10,10 @@
 <link rel="stylesheet" href="css/viewer.css">
 <link rel="stylesheet" href="css/player.css">
 <link rel="stylesheet" href="css/settings.css">
+<link rel="stylesheet" href="css/docx.css">
 <link rel="stylesheet" href="css/responsive.css">
 </head>
-<body>
+<body class="start">
 
 <header class="bar" id="bar">
   <div class="brand">PDF Voice Reader<small>किसी भी पंक्ति पर क्लिक करें, वह बोली जाएगी</small></div>
@@ -24,8 +25,8 @@
   </div>
 
   <div class="ctl">
-    <button class="btn primary" id="openBtn">Open<span class="long"> PDF</span></button>
-    <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+    <button class="btn primary" id="openBtn">Open<span class="long"> file</span></button>
+    <input type="file" id="fileInput" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" hidden>
     <button class="btn icon" id="darkBtn" aria-pressed="false" title="Dark pages (black background)" aria-label="Dark pages">🌙</button>
     <button class="btn icon" id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
   </div>
@@ -33,10 +34,17 @@
 
 <main>
   <div class="stage" id="stage">
-    <div class="empty" id="empty" tabindex="0" role="button">
-      <h1>कोई हिंदी PDF खोलें</h1>
-      <p>Open a PDF, then press ▶ to listen from the start, or tap any line to begin there. If the PDF uses an old Hindi font and the text comes out garbled, Gemini can read the page for you — set it up under ⚙.</p>
-      <span class="btn primary">Choose a PDF file</span>
+    <div class="empty" id="empty">
+      <svg class="start-logo" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="12" y="6" width="40" height="52" rx="6" fill="currentColor" opacity=".14"/>
+        <rect x="12" y="6" width="40" height="52" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+        <path d="M22 22h20M22 30h20M22 38h11" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        <path d="M40 40l9 5-9 5z" fill="currentColor"/>
+      </svg>
+      <h1>PDF Voice Reader</h1>
+      <p class="start-sub">हिंदी PDF या Word फ़ाइल सुनें</p>
+      <button class="btn primary start-btn" id="startOpenBtn" type="button">Open file</button>
+      <p class="start-hint">PDF · Word (.docx)</p>
     </div>
 
     <div class="banner" id="banner">

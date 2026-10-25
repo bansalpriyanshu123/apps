@@ -32,6 +32,7 @@ class SpeechService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_PAUSE) {
             PlaybackControl.onPause?.invoke()
+            stopSelf() // paused: drop the foreground notification
             return START_NOT_STICKY
         }
         createChannel()

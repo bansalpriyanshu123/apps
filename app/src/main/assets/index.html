@@ -921,7 +921,9 @@
   }
   function step(dir) {
     if (!pdfDoc) return;
-    const base = active || resumePos || { p: currentPage, s: dir > 0 ? -1 : 0 };
+    const base = active || resumePos;
+    // Nothing playing yet: ⏮ / ⏭ just start from the top of the page you're on.
+    if (!base) { speakSeg(currentPage, 0); return; }
     speakSeg(base.p, base.s + dir);
   }
   function pause() {
@@ -1225,7 +1227,23 @@
       const c = ch.codePointAt(0);
       if ((c >= 0x0900 && c <= 0x097F) || (c >= 0x0980 && c <= 0x0DFF) || /[A-Za-z]/.test(ch)) letters++;
     }
-    return letters / chars.length < 0.6;
+    if (letters / chars.length < 0.6) return true;
+    return looksLikeLegacyHindi(text);
+  }
+
+  // Old Hindi fonts (Kruti Dev, Chanakya…) put Devanagari on Latin letters, so the text is mostly "letters"
+  // ("fganh Hkk"kk ds izfr…"). It differs from real English: half the words have a capital or symbol
+  // inside them, and almost none are common English words.
+  const EN_WORDS = new Set('the and of to in is a that for it with as was on are by this be from or an at not have has but his her they you we which their were can will one all'.split(' '));
+  function looksLikeLegacyHindi(text) {
+    const words = text.split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
+    if (words.length < 5) return false;
+    let en = 0, odd = 0;
+    for (const w of words) {
+      if (EN_WORDS.has(w.toLowerCase().replace(/[^a-z]/g, ''))) en++;
+      if (/[a-z][A-Z]|[A-Za-z]["\[\];^{}~|@]|^[;\[{^~|@]/.test(w)) odd++;
+    }
+    return odd / words.length > 0.25 && en / words.length < 0.1;
   }
 
   function needsGemini(pg) {
@@ -1419,7 +1437,8 @@
       if (document.activeElement !== pageInput) pageInput.value = best;
       updatePagerButtons();
       clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => savePref('pvr-pos:' + pdfId, String(currentPage)), 800);
+      const idAtScroll = pdfId, pageAtScroll = currentPage;
+      saveTimer = setTimeout(() => { if (idAtScroll === pdfId) savePref('pvr-pos:' + idAtScroll, String(pageAtScroll)); }, 800);
     }
   }
   let scrollTick = false;

@@ -47,7 +47,7 @@ class SpeechService : Service() {
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle(intent?.getStringExtra(EXTRA_TITLE)?.ifBlank { null } ?: "PDF Voice Reader")
-            .setContentText("Reading aloud")
+            .setContentText(intent?.getStringExtra(EXTRA_TEXT)?.ifBlank { null } ?: "Reading aloud")
             .setContentIntent(open)
             .setOngoing(true)
             .setSilent(true)
@@ -85,6 +85,7 @@ class SpeechService : Service() {
     companion object {
         const val ACTION_PAUSE = "com.example.pdfvoicereader.PAUSE"
         const val EXTRA_TITLE = "title"
+        const val EXTRA_TEXT = "text"
         private const val CHANNEL_ID = "reading"
         private const val NOTIFICATION_ID = 1
     }

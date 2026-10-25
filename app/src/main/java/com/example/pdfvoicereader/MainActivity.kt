@@ -40,7 +40,11 @@ class MainActivity : AppCompatActivity() {
     private var ttsReady = false
     private var fileCallback: ValueCallback<Array<Uri>>? = null
 
+    /** True while the page is reading aloud; the foreground service then belongs to playback. */
+    private var speaking = false
+
     private val filePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (!speaking) stopService(Intent(this, SpeechService::class.java))
         val uris = WebChromeClient.FileChooserParams.parseResult(result.resultCode, result.data)
         fileCallback?.onReceiveValue(uris)
         fileCallback = null
@@ -84,11 +88,15 @@ class MainActivity : AppCompatActivity() {
             ): Boolean {
                 fileCallback?.onReceiveValue(null)
                 fileCallback = filePathCallback
+                // The picker sends this app to the background; on a low-memory phone Android would kill it
+                // there and the chosen PDF would be lost. A foreground service keeps the process alive.
+                if (!speaking) startKeepAlive("Choosing a PDF…")
                 return try {
                     filePicker.launch(params.createIntent())
                     true
                 } catch (e: ActivityNotFoundException) {
                     fileCallback = null
+                    if (!speaking) stopService(Intent(this@MainActivity, SpeechService::class.java))
                     false
                 }
             }
@@ -107,6 +115,17 @@ class MainActivity : AppCompatActivity() {
 
         // Served over https from the app's own assets so localStorage and relative paths behave normally.
         webView.loadUrl("https://$ASSET_HOST/assets/index.html")
+    }
+
+    private fun startKeepAlive(text: String) {
+        try {
+            ContextCompat.startForegroundService(
+                this,
+                Intent(this, SpeechService::class.java)
+                    .putExtra(SpeechService.EXTRA_TITLE, "PDF Voice Reader")
+                    .putExtra(SpeechService.EXTRA_TEXT, text)
+            )
+        } catch (e: Exception) { /* best effort */ }
     }
 
     /**
@@ -231,6 +250,7 @@ class MainActivity : AppCompatActivity() {
         @JavascriptInterface
         fun setPlaying(playing: Boolean, title: String) {
             runOnUiThread {
+                speaking = playing
                 val intent = Intent(this@MainActivity, SpeechService::class.java)
                 if (playing) {
                     try {

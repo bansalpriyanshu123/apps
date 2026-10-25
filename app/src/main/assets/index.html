@@ -153,6 +153,10 @@
   .page-wrap .badge .spin { width: 10px; height: 10px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
   .page-wrap .badge.err { background: var(--danger); }
   @keyframes spin { to { transform: rotate(360deg) } }
+  /* Dark pages: invert the rendered PDF (white paper → black), keep hues roughly right */
+  #pages.dark .page-wrap { background: #0b0f14; }
+  #pages.dark .page-wrap canvas { filter: invert(1) hue-rotate(180deg); }
+  #pages.dark .page-wrap .num { color: #6b7684; }
   .text-layer { position: absolute; inset: 0; }
   .line { position: absolute; cursor: pointer; border-radius: 3px; border-left: 3px solid transparent; margin-left: -3px; transition: background .12s; }
   .line:hover { background: var(--line-hover); }
@@ -177,6 +181,13 @@
   .now-ctl .btn.round { width: 48px; height: 48px; min-width: 48px; border-radius: 50%; padding: 0; font-size: 1.2rem; }
   .now-ctl select { flex: 1; min-width: 0; max-width: 220px; margin-left: auto; }
   #speedBtn { min-width: 3.9em; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .speed-pop { position: absolute; left: 14px; bottom: calc(100% + 8px); width: min(380px, calc(100% - 28px)); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); padding: 12px 14px 14px; display: none; flex-direction: column; gap: 10px; }
+  .speed-pop.show { display: flex; }
+  .speed-pop .sp-row { display: flex; align-items: center; gap: 10px; }
+  .speed-pop input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); height: 28px; }
+  .speed-pop .sp-val { text-align: center; font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .speed-pop .sp-presets { display: flex; gap: 8px; justify-content: space-between; }
+  .speed-pop .sp-presets .btn { flex: 1; padding: 6px 4px; min-height: 34px; font-variant-numeric: tabular-nums; }
 
   /* Settings */
   .scrim { position: fixed; inset: 0; background: rgba(10,14,20,.45); display: none; z-index: 20; }
@@ -235,6 +246,7 @@
   <div class="ctl">
     <button class="btn primary" id="openBtn">Open PDF</button>
     <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+    <button class="btn icon" id="darkBtn" aria-pressed="false" title="Dark pages (black background)" aria-label="Dark pages">🌙</button>
     <button class="btn icon" id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
   </div>
 </header>
@@ -259,6 +271,21 @@
 </main>
 
 <div class="now" id="now">
+  <div class="speed-pop" id="speedPop" role="dialog" aria-label="Reading speed">
+    <div class="sp-row">
+      <button class="btn icon" id="speedDown" aria-label="Slower">−</button>
+      <input type="range" id="speedRange" min="0.5" max="2" step="0.05" value="1" aria-label="Reading speed">
+      <button class="btn icon" id="speedUp" aria-label="Faster">+</button>
+    </div>
+    <div class="sp-val" id="speedVal">1.0×</div>
+    <div class="sp-presets">
+      <button class="btn" data-speed="0.75">0.75×</button>
+      <button class="btn" data-speed="1">1×</button>
+      <button class="btn" data-speed="1.25">1.25×</button>
+      <button class="btn" data-speed="1.5">1.5×</button>
+      <button class="btn" data-speed="2">2×</button>
+    </div>
+  </div>
   <div class="now-info">
     <span class="pulse" aria-hidden="true"></span>
     <div class="text idle" id="nowText" aria-live="polite"></div>
@@ -345,6 +372,7 @@
   const pagerCtl = $('pagerCtl'), pageInput = $('pageInput'), pageTotal = $('pageTotal'), prevBtn = $('prevBtn'), nextBtn = $('nextBtn');
   const voiceSel = $('voice'), speedBtn = $('speedBtn'), contBtn = $('contBtn'), playBtn = $('playBtn');
   const prevSeg = $('prevSeg'), nextSeg = $('nextSeg'), stopBtn = $('stopBtn'), testVoice = $('testVoice');
+  const speedPop = $('speedPop'), speedRange = $('speedRange'), speedVal = $('speedVal'), speedDown = $('speedDown'), speedUp = $('speedUp'), darkBtn = $('darkBtn');
   const notice = $('notice'), now = $('now'), nowText = $('nowText'), nowMeta = $('nowMeta');
   const banner = $('banner'), bannerText = $('bannerText'), bannerBtn = $('bannerBtn');
   const settingsBtn = $('settingsBtn'), scrim = $('scrim'), sheet = $('sheet'), closeSheet = $('closeSheet');
@@ -356,7 +384,7 @@
   const DEFAULT_TEXT_MODEL = 'gemini-3.8-flash';
   const DEFAULT_TTS_MODEL = 'gemini-3.8-flash-tts';
   const GEMINI_VOICES = ['Kore', 'Puck', 'Zephyr', 'Charon', 'Fenrir', 'Leda', 'Aoede', 'Orus'];
-  const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
+  const MIN_RATE = 0.5, MAX_RATE = 2, RATE_STEP = 0.05;
   const LAST = Infinity;
   const IN_ANDROID_APP = location.hostname === 'appassets.androidapp.com';
 
@@ -696,13 +724,27 @@
   }
   syncBarHeight();
 
+  // Any speed from 0.5× to 2× in 0.05 steps.
   function setRate(r) {
-    rate = SPEEDS.reduce((a, b) => (Math.abs(b - r) < Math.abs(a - r) ? b : a), 1);
-    speedBtn.textContent = rate.toFixed(2).replace(/0$/, '') + '×';
+    r = Math.round(Math.min(MAX_RATE, Math.max(MIN_RATE, r || 1)) / RATE_STEP) * RATE_STEP;
+    rate = Math.round(r * 100) / 100;
+    const label = rate.toFixed(2).replace(/0$/, '') + '×';
+    speedBtn.textContent = label;
+    speedVal.textContent = label;
+    speedRange.value = rate;
     savePref('pvr-rate', String(rate));
     geminiTts.setRate(rate);
   }
   setRate(parseFloat(loadPref('pvr-rate', '1')) || 1);
+
+  function setDarkPages(on) {
+    pagesEl.classList.toggle('dark', on);
+    darkBtn.classList.toggle('on', on);
+    darkBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    savePref('pvr-dark', on ? '1' : '0');
+  }
+  setDarkPages(loadPref('pvr-dark', '0') === '1');
+  darkBtn.addEventListener('click', () => setDarkPages(!pagesEl.classList.contains('dark')));
 
   function setCont(v) {
     cont = !!v;
@@ -874,12 +916,23 @@
   });
 
   /* ---------- player controls ---------- */
-  speedBtn.addEventListener('click', () => {
-    const i = SPEEDS.indexOf(rate);
-    setRate(SPEEDS[(i + 1) % SPEEDS.length]);
-    // Gemini audio changes speed live; device voices need a restart of the current sentence.
-    const v = selectedVoice();
-    if (playing && active && !(v && v.gemini)) speakSeg(active.p, active.s);
+  // Gemini audio changes speed live; device voices need a restart of the current sentence,
+  // so wait until the slider / buttons settle before restarting.
+  let rateTimer = null;
+  function applyRateSoon() {
+    clearTimeout(rateTimer);
+    rateTimer = setTimeout(() => {
+      const v = selectedVoice();
+      if (playing && active && !(v && v.gemini)) speakSeg(active.p, active.s);
+    }, 450);
+  }
+  speedBtn.addEventListener('click', () => speedPop.classList.toggle('show'));
+  speedRange.addEventListener('input', () => { setRate(parseFloat(speedRange.value)); applyRateSoon(); });
+  speedDown.addEventListener('click', () => { setRate(rate - RATE_STEP); applyRateSoon(); });
+  speedUp.addEventListener('click', () => { setRate(rate + RATE_STEP); applyRateSoon(); });
+  speedPop.querySelectorAll('[data-speed]').forEach((b) => b.addEventListener('click', () => { setRate(parseFloat(b.dataset.speed)); applyRateSoon(); }));
+  document.addEventListener('pointerdown', (e) => {
+    if (speedPop.classList.contains('show') && !speedPop.contains(e.target) && e.target !== speedBtn) speedPop.classList.remove('show');
   });
   contBtn.addEventListener('click', () => setCont(!cont));
   playBtn.addEventListener('click', togglePlay);
@@ -1449,7 +1502,12 @@
   }, { passive: true });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { if (sheet.classList.contains('show')) hideSheet(); else stop(); return; }
+    if (e.key === 'Escape') {
+      if (speedPop.classList.contains('show')) speedPop.classList.remove('show');
+      else if (sheet.classList.contains('show')) hideSheet();
+      else stop();
+      return;
+    }
     const t = e.target.tagName;
     if (t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA' || e.target.classList.contains('line')) return;
     if (e.key === ' ' && pdfDoc) { e.preventDefault(); togglePlay(); }

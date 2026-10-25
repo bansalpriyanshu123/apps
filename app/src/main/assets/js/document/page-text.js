@@ -8,6 +8,7 @@ import { emit, on } from '../core/bus.js';
 import { ocrCache } from '../core/ocr-cache.js';
 import { transformMatrix } from '../services/pdf-engine.js';
 import { readPageWithGemini } from '../services/gemini-ocr.js';
+import { classifyLostGlyphs } from '../services/glyph-kinds.js';
 import { groupLines } from '../text/line-grouping.js';
 import { hasLostGlyphs, looksGarbled } from '../text/devanagari.js';
 import { buildSentences } from '../text/sentences.js';
@@ -51,6 +52,31 @@ export function rebuildLines(pg) {
   return true;
 }
 
+const countNul = (text) => text.split(String.fromCharCode(0)).length - 1;
+
+/**
+ * Keeps the page's non-empty text items, each tagged with what its lost glyphs (NULs) really are, when the page's
+ * drawing instructions can tell (see services/glyph-kinds.js). If the glyphs and the NULs do not line up, no tags
+ * are added and the text repair guesses from position instead.
+ */
+async function withLostGlyphKinds(pg, items) {
+  let kinds = null;
+  if (pg.damaged) {
+    try { kinds = await classifyLostGlyphs(pg.page); } catch (err) { kinds = null; }
+    const nulls = items.reduce((total, item) => total + countNul(item.str), 0);
+    if (!kinds || kinds.length !== nulls) kinds = null;
+  }
+  let next = 0;
+  const kept = [];
+  for (const item of items) {
+    const count = kinds ? countNul(item.str) : 0;
+    const itemKinds = kinds && count ? kinds.slice(next, next + count) : undefined;
+    next += count;
+    if (item.str && item.str.trim()) kept.push({ str: item.str, transform: item.transform, width: item.width, kinds: itemKinds });
+  }
+  return kept;
+}
+
 function extractPdfLines(pg) {
   pg.pdfLines = groupLines({
     items: pg.rawItems,
@@ -69,7 +95,7 @@ export function ensureText(pg, useGemini) {
     pg.textReady = loadPage(pg).then(() => pg.page.getTextContent()).then(async (content) => {
       pg.damaged = hasLostGlyphs(content.items);
       if (pg.damaged) state.docVisualOrder = true;
-      pg.rawItems = content.items.filter((item) => item.str && item.str.trim());
+      pg.rawItems = await withLostGlyphKinds(pg, content.items);
       extractPdfLines(pg);
       pg.garbled = looksGarbled(pg.pdfLines);
       const cached = await ocrCache.get(cacheKey(pg));

@@ -1,6 +1,6 @@
-// End-to-end check of the whole web app through the Chrome DevTools protocol: boot, open a PDF, render, tap a line,
-// pause / stop, zoom (buttons + pinch), pinned header, dark pages, settings, and "no console errors".
-// Needs Node 22 (built-in WebSocket) and a PDF to open (any PDF; a Hindi one exercises the text repair).
+// End-to-end check of the whole web app through the Chrome DevTools protocol: boot, open a PDF, render, text quality
+// (no lost-glyph placeholders, expected Hindi words), tap a line, pause / stop, zoom (buttons + pinch), pinned header,
+// dark pages, settings, and "no console errors". Needs Node 22 (built-in WebSocket) and a PDF to open.
 //
 // A) Desktop Chrome (no phone needed):
 //    1. python -m http.server 8765 --bind 127.0.0.1        (run inside app/src/main/assets)
@@ -9,11 +9,13 @@
 //
 // B) The real app on a USB-debugging phone, using the web files from this checkout instead of the installed ones
 //    (no rebuild needed; speech goes through the real Android bridge):
-//    1. install the app, open it, keep the screen on
+//    1. install the app, open it, keep the screen on (adb shell svc power stayon usb)
 //    2. adb forward tcp:9222 localabstract:webview_devtools_remote_<pid of the app>
 //    3. PORT=9222 URL=https://appassets.androidapp.com/assets/index.html EMULATE=0 //         INJECT_DIR=app/src/main/assets node web-tests/e2e/run.mjs <file.pdf> all
 //
-// steps: smoke | tap | zoom | dark | settings | all        env: PORT, URL, EMULATE, INJECT_DIR, OUT (screenshot folder)
+// steps: smoke | text | tap | zoom | dark | settings | all
+// env:   PORT, URL, EMULATE, INJECT_DIR, INJECT_WAIT (ms), OUT (screenshot folder),
+//        TEXT_PAGES (how many pages the text step reads, default 10), EXPECT_WORDS (comma separated words that must appear)
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -34,6 +36,7 @@ let nextId = 1;
 const pending = new Map();
 const consoleErrors = [];
 const exceptions = [];
+const report = {};
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
   if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); return; }
@@ -75,6 +78,10 @@ await wait(3500);
 const INJECT_DIR = process.env.INJECT_DIR;
 if (INJECT_DIR) {
   const ORIGIN = 'https://appassets.androidapp.com/assets/';
+  // The installed app may already have loaded its own copies of these modules into this page, and a page keeps its
+  // module cache. Move to a plain static file on the same origin first (a 404 page would have an opaque origin) so the injected modules are the ones that run.
+  await send('Page.navigate', { url: ORIGIN + 'css/theme.css' });
+  await wait(1500);
   const files = {};
   const walk = (dir, rel) => {
     for (const entry of fs.readdirSync(`${dir}/${rel}`, { withFileTypes: true })) {
@@ -88,6 +95,7 @@ if (INJECT_DIR) {
     files[url] = source.replace(/(from\s+)'(\.[^']+)'/g, (m, f, spec) => `${f}'${new URL(spec, url).href}'`);
   }
   let html = fs.readFileSync(`${INJECT_DIR}/index.html`, 'utf8');
+  html = html.replace('<head>', `<head><base href="${ORIGIN}">`);   // the temporary page lives in css/: keep relative URLs (pdfjs/) pointing at assets/
   html = html.replace(/<link rel="stylesheet" href="(css\/[^"]+)">/g, (m, href) => `<style>${fs.readFileSync(`${INJECT_DIR}/${href}`, 'utf8')}</style>`);
   html = html.replace('<script type="module" src="js/main.js"></script>',
     `<script type="importmap">__IMPORTMAP__</script><script type="module">import '${ORIGIN}js/main.js';</script>`);   // import maps remap imports, not <script src>
@@ -103,10 +111,9 @@ if (INJECT_DIR) {
     return Object.keys(files).length;
   })()`);
   console.error('injected modules:', injected);
-  await wait(4000);
+  await wait(Number(process.env.INJECT_WAIT || 9000));
 }
 
-const report = {};
 const ok = (name, cond, extra) => { report[name] = cond ? 'PASS' : 'FAIL' + (extra !== undefined ? ' ' + JSON.stringify(extra) : ''); };
 
 // --- smoke: modules loaded, markup wired ---
@@ -150,6 +157,22 @@ await wait(1500);
 const first = await paintedPages();
 ok('render: first page painted', first.visible > 0 && first.blank === 0, first);
 await shot('1-opened');
+
+if (steps.includes('text') || steps.includes('all')) {
+  // Every line of the first pages must be free of placeholders; EXPECT_WORDS (comma separated) must all appear.
+  const pagesToScan = Number(process.env.TEXT_PAGES || 10);
+  const lines = JSON.parse(await evaluate(`(async () => { const out = [];
+    for (let p = 1; p <= ${pagesToScan}; p++) { const w = document.querySelector('.page-wrap[data-page="' + p + '"]'); if (!w) break;
+      w.scrollIntoView({ block: 'start' }); await new Promise(r => setTimeout(r, 700)); out.push(...[...w.querySelectorAll('.line')].map(l => l.title)); }
+    window.scrollTo(0, 0); return JSON.stringify(out); })()`));
+  const leftovers = lines.filter((l) => /[ �-]/.test(l));
+  ok('text: no lost-glyph placeholders left in the first pages', lines.length > 0 && leftovers.length === 0, leftovers.slice(0, 3));
+  const expected = (process.env.EXPECT_WORDS || '').split(',').map((w) => w.trim()).filter(Boolean);
+  const missing = expected.filter((w) => !lines.some((l) => l.includes(w)));
+  if (expected.length) ok('text: expected words are read correctly (' + expected.length + ')', missing.length === 0, missing);
+  const glued = lines.filter((l) => /(अर्थात्|परिषद्|संसद्)[क-ह]/.test(l));
+  ok('text: words ending in a halant keep the space after them', glued.length === 0, glued.slice(0, 2));
+}
 
 if (steps.includes('tap') || steps.includes('all')) {
   const t = JSON.parse(await evaluate(`(async () => {

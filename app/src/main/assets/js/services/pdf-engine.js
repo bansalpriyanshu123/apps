@@ -48,3 +48,6 @@ export async function openDocument(arrayBuffer) {
   const lib = await loadPdfEngine();
   return lib.getDocument({ data: arrayBuffer }).promise;
 }
+
+/** pdf.js's operator codes (OPS.showText ...), needed to read a page's drawing instructions. */
+export const pdfOps = () => library.OPS;

@@ -1,11 +1,8 @@
 // Pure helpers for Devanagari text as it comes out of PDFs. No DOM, no application state: unit-testable in Node.
 
-const NUL = '\x00';
-const VIRAMA = '्';
-const I_MATRA = 'ि';
-const RA = 'र';
+import { CONS, I_MATRA, NUL, RA, VIRAMA } from './devanagari-chars.js';
+import { markLostGlyphs, resolveLostGlyphs, screenOrderIMatra } from './lost-glyphs.js';
 
-const CONS = '[\\u0915-\\u0939\\u0958-\\u095F]\\u093C?';               // a consonant, optional nukta
 const CLUSTER_START = new RegExp('^(' + CONS + '(?:\\u094D' + CONS + ')*)');
 const REPH_BASE = new RegExp(
   '((?:' + CONS + '\\u094D)*' + CONS + ')([\\u093E-\\u094C\\u0962\\u0963\\u0901-\\u0903]*)$');
@@ -26,9 +23,20 @@ export const hasLostGlyphs = (items) => items.some((item) => LOST_GLYPH.test(ite
  * A real ि at the start of a chunk is in screen order too ("श" + "िक्त" for शक्ति) and is moved the same way,
  * but only when `visualOrder` says this PDF behaves like that.
  * A glyph with no code at all (an empty chunk) cannot be recovered; Gemini reading handles those.
+ *
+ * With `kinds` (what each NUL really was, from the page's glyphs - see lost-glyphs.js) nothing is guessed: the NULs
+ * become typed placeholders that resolveLostGlyphs() later turns into the right letters. Without them, the position
+ * rules above are used.
  */
-export function repairItem(str, visualOrder) {
+export function repairItem(str, visualOrder, kinds) {
   let text = str.replace(/\uFFFD/g, '');
+  if (kinds && kinds.length && text.indexOf(NUL) >= 0) {
+    const marked = markLostGlyphs(text, kinds);
+    if (marked !== null) {
+      const screenOrder = visualOrder && marked.charCodeAt(0) === I_MATRA.charCodeAt(0);
+      return screenOrder ? screenOrderIMatra() + marked.slice(1) : marked;
+    }
+  }
   if (text.indexOf(NUL) < 0 && !(visualOrder && text.charCodeAt(0) === I_MATRA.charCodeAt(0))) return text;
 
   let moveIMatra = false;
@@ -52,19 +60,29 @@ export function repairItem(str, visualOrder) {
   return text;
 }
 
+// A consonant + virama at the end of a chunk that continues into the next chunk's conjunct. त् द् म् न् are excluded:
+// words really do end in them (अर्थात्, परिषद्, अहम्, विद्वान्) and the next word follows.
+const JOINS_NEXT = /(?![तदमन])[क-ह]्$/;
+
 /** Should a space be inserted between two chunks of one line that are `gap` apart? Never inside a word. */
 export function needsSpaceBetween(textSoFar, nextChunk, gap, lineHeight) {
   if (!(gap > lineHeight * 0.12)) return false;
   if (/\s$/.test(textSoFar) || /^\s/.test(nextChunk)) return false;
-  const insideWord = textSoFar.endsWith(VIRAMA) || STARTS_WITH_SIGN.test(nextChunk);
+  // A virama joins the next consonant into one conjunct ("राजव्" + "यवस्था") - but a word can also END in one
+  // ("अर्थात्", "परिषद्"), so only a small gap after a letter that never ends a word means "same word".
+  const conjunctContinues = JOINS_NEXT.test(textSoFar) && gap <= lineHeight * 0.3;
+  const insideWord = conjunctContinues || STARTS_WITH_SIGN.test(nextChunk);
   return !insideWord;
 }
 
 /** Collapses whitespace and removes a space after a conjunct mark ("राजव् यवस् था" -> "राजव्यवस्था"). */
 export function tidyLineText(text) {
-  return text
+  return resolveLostGlyphs(text)
     .replace(/\s+/g, ' ')
-    .replace(/्\s+(?=[क-हक़-य़])/g, VIRAMA)
+    // a lone consonant stranded after a space ("प्रदे श", "अध्यादे श") is the rest of the word: no Hindi word is one
+    // consonant, and the PDF's own text has the stray space
+    .replace(/([ा-ौ]) ([क-ह])(?=$|[\s,.;:)।])/g, '$1$2')
+    .replace(/((?![\u0924\u0926\u092E\u0928])[\u0915-\u0939])\u094D\s+(?=[\u0915-\u0939\u0958-\u095F])/g, '$1' + VIRAMA)
     .trim();
 }
 

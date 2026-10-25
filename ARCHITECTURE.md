@@ -30,8 +30,8 @@ folder under `app/src/main/assets/js/`.
 | | `viewer/` | The scrolling pages: `page-list`, `renderer`, `layout`, `zoom`, `pager`, `line-layer`, `highlight`, `page-badge`. | document, core |
 | | `settings/` | The settings sheet. | player/controls+voices, services, ui, core |
 | Document | `document/` | `page-model` (a page record), `page-text` (which lines a page uses: PDF text or Gemini). **No DOM.** | services, text, ui/banner+notice, core |
-| Services | `services/` | Talking to the outside world: pdf.js, Gemini (text, OCR, voices), device speech. | text, core |
-| Text logic | `text/` | **Pure functions** (no DOM, no state, unit-tested): `devanagari` (matra repair, garbled-text detection), `line-grouping`, `sentences`, `ocr-parse`. | – |
+| Services | `services/` | Talking to the outside world: pdf.js, Gemini (text, OCR, voices), device speech, `glyph-kinds` (what each lost glyph on a page really is). | text, core |
+| Text logic | `text/` | **Pure functions** (no DOM, no state, unit-tested): `devanagari` (repair rules, garbled-text detection, spacing), `lost-glyphs` (putting back र् / ि / ी / ो once their kind is known), `devanagari-chars`, `line-grouping`, `sentences`, `ocr-parse`. | – |
 | UI leaves | `ui/` | Small shared views: `notice`, `banner`, `theme`, `header`. | core |
 | Core | `core/` | `config` (constants), `state` (the one shared state object), `store` (preferences), `ocr-cache` (IndexedDB), `bus` (events), `dom` (element lookup), `util`. | – |
 
@@ -69,6 +69,28 @@ open PDF ─► app/open-pdf ─► services/pdf-engine ─► viewer/page-list 
 tap a line ─► bus line:tap ─► player/playback.speakSentence ─► services/speech ─► Gemini voice | device voice (Android bridge)
 ```
 
+## Reading broken Hindi PDFs (why the text code looks the way it does)
+
+Many PDFs (browser / Google Docs exports) draw Devanagari with ligature glyphs that have no entry in the font's
+text map. Every reader then gets wrong text from them, not just this app: a lost ि, a lost र्, or one glyph standing
+for र्+ी / र्+ो. pdf.js reports a NUL character for each. The app recovers the letters in three tiers, best first:
+
+1. **Glyph kinds** (`services/glyph-kinds.js` + `text/lost-glyphs.js`, exact for the PDFs tested). The page's drawing
+   instructions list the same glyphs in the same order as the NULs, with facts the text lacks: the advance width
+   (0 = lone र्, same as a real ि = ि, same as a real ा = र् fused with a vowel sign) and, for the fused ones, the ink
+   of the glyph drawn with the PDF's own font (a ी has a hook left of its origin, a ो does not). Word position then
+   decides ो (सर्वोच्च) against ों (वर्षों). If the NULs and glyphs do not line up, tier 2 is used for that chunk.
+2. **Position rules** (`text/devanagari.js` `repairItem`): a NUL at the start of a text chunk is a ि, at the end a र्.
+   Right for many words, wrong when one glyph stands for two letters (प्रतिस्पर्धी came out as प्रतिस्पर्ध).
+3. **Gemini** (`services/gemini-ocr.js`): reads the page picture; exact, but needs an API key and internet.
+
+Alternatives that were tried or considered:
+* *Text-shaping libraries* (HarfBuzz, ICU) hold the Devanagari rules but only go text -> glyphs; the PDF needs glyphs -> text.
+* *On-device OCR* (Tesseract.js with the 1.1 MB Hindi model) read the test page correctly in ~4 s on a laptop, but on the
+  3.5 GB test phone it pushed memory so hard that Android killed the app and others. Not shipped.
+* *Matching a glyph's shape against known vowel signs* was unreliable (ी, ा and ो overlap too much); the ink-left test
+  above is the one feature that separated them.
+
 ## Design rules this code follows
 
 1. **One job per module**, named after that job. Pure logic is separated from DOM and from I/O so it can be tested.
@@ -96,7 +118,7 @@ tap a line ─► bus line:tap ─► player/playback.speakSentence ─► servi
 
 | What | How | Needs |
 |---|---|---|
-| Pure text logic (`text/`) | `npm test` (Node's built-in test runner, `web-tests/unit/`) | Node 22 |
+| Pure text logic (`text/`) and the architecture rules | `npm test` (Node's built-in test runner, `web-tests/unit/`) | Node 22 |
 | The whole web app | `node web-tests/e2e/run.mjs <pdf> all` (boot, open, render, tap, pause/stop, zoom + pinch, pinned header, dark pages, settings, console errors) | Chrome, or a USB-debugging phone; see the header of the file |
 | Android build | GitHub Actions (`.github/workflows/main.yml`) | – |
 

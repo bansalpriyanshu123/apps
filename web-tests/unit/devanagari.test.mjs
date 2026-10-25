@@ -41,11 +41,18 @@ test('placeholders are detected and never survive repair', () => {
 });
 
 test('no space is inserted inside a word, only between words', () => {
-  assert.equal(needsSpaceBetween('राजव्', 'यवस्', 5, 10), false);       // after a virama
+  assert.equal(needsSpaceBetween('राजव्', 'यवस्', 2, 10), false);       // small gap after a virama: one conjunct
+  assert.equal(needsSpaceBetween('अर्थात्', 'आगे', 5, 10), true);       // a word may END in a virama
   assert.equal(needsSpaceBetween('नोट', '्स', 5, 10), false);          // chunk starts with a sign
   assert.equal(needsSpaceBetween('भारत', 'देश', 5, 10), true);
   assert.equal(needsSpaceBetween('भारत', 'देश', 0.5, 10), false);      // touching
   assert.equal(tidyLineText('भारतीय  राजव् यवस् था  '), 'भारतीय राजव्यवस्था');
+  assert.equal(tidyLineText('केन्द्र शासित प्रदे श (केन्द्र) अध्यादे श।'), 'केन्द्र शासित प्रदेश (केन्द्र) अध्यादेश।');
+  assert.equal(tidyLineText('वित्त आयोग के लिए'), 'वित्त आयोग के लिए');   // real short words are untouched
+  // words that really end in a halant keep the space after them
+  assert.equal(tidyLineText('(अर्थात् राष्ट्रपति ) मंत्रिपरिषद् के परामर्श संसद् की'), '(अर्थात् राष्ट्रपति ) मंत्रिपरिषद् के परामर्श संसद् की');
+  assert.equal(tidyLineText('नोट् स'), 'नोट्स');
+  assert.equal(needsSpaceBetween('अर्थात्', 'राष्ट्रपति', 2, 10), true);
 });
 
 test('legacy-font text (Kruti Dev style) is recognised as garbled, real Hindi and English are not', () => {

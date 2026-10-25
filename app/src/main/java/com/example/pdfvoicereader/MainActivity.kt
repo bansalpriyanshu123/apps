@@ -74,9 +74,11 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.webViewClient = object : WebViewClientCompat() {
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                assetLoader.shouldInterceptRequest(request.url)
-
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                val response = assetLoader.shouldInterceptRequest(request.url)
+                android.util.Log.d("PVR", "intercept ${request.url} -> ${if (response == null) "NOT SERVED (goes to network)" else "served from assets"}")
+                return response
+            }
             override fun onPageFinished(view: WebView?, url: String?) {
                 if (ttsReady) notifyVoicesChanged()
             }

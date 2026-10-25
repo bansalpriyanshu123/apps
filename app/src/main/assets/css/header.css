@@ -1,0 +1,24 @@
+/* Top bar: title, page pager, open / dark / settings buttons. */
+
+/* fixed (not sticky) so the bar stays put when the zoomed document is scrolled sideways; <main> is pushed down by --bar-h */
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 16px;
+}
+.brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.brand small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; }
+.ctl { display: flex; align-items: center; gap: 8px; }
+.bar > .ctl:last-child { margin-left: auto; }
+
+.pager { font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
+.pager input { width: 2.8em; text-align: right; border: 1px solid var(--border); border-radius: 6px; padding: 4px; background: var(--surface); -moz-appearance: textfield; }
+.pager input::-webkit-inner-spin-button, .pager input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }

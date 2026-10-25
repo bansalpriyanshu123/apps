@@ -46,29 +46,29 @@ Downloaded voices work offline; the app lists them under *Hindi · हिन्�
 
 ## How it's put together
 
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module map and design rules. In short:
+
 | Path | What it is |
 |---|---|
-| `app/src/main/assets/index.html` | The entire app UI and logic (same file runs in a browser). |
+| `app/src/main/assets/index.html` | The page's markup only. |
+| `app/src/main/assets/css/` | Styles, split by area (theme, header, viewer, player, settings, responsive). |
+| `app/src/main/assets/js/` | The web app as small ES modules in layers: `core`, `text` (pure logic), `services`, `document`, `viewer`, `player`, `settings`, `app`; `main.js` wires them up. |
 | `app/src/main/assets/pdfjs/` | pdf.js, downloaded by the scripts / CI so the app works offline. |
-| `MainActivity.kt` | WebView shell: system file picker + `window.AndroidTTS` bridge to native speech. |
-| `SpeechService.kt` | Foreground service + notification (with Pause) so reading continues with the screen off. |
-| `.github/workflows/main.yml` | Builds the APK on GitHub's servers (Gradle 8.7, JDK 17). |
+| `app/src/main/java/.../MainActivity.kt` and friends | The thin Android shell: asset server, file picker, text-to-speech bridge, foreground service. |
+| `web-tests/` | Unit tests for the text logic (`npm test`) and an end-to-end check of the whole app. |
+| `.github/workflows/main.yml` | Runs the unit tests, then builds the APK on GitHub's servers (Gradle 8.7, JDK 17). |
 
 Build note: this repo has no Gradle wrapper. CI pins Gradle 8.7; Android Studio manages its own. If you build
 with a newer standalone Gradle (9.x) and AGP 8.5.2 fails, use Gradle 8.7 (`gradle wrapper --gradle-version 8.7`).
 
 ## Using the player
 
-- ▶ reads from the top of the page you're on; tapping a line starts at that sentence.
-- ⏮ ⏭ jump by sentence (across pages), ■ stops, the speed button cycles 0.75×–2×, ∞ keeps reading until you stop.
+- ▶ reads from the top of the page you're on; tapping a line starts reading from that line.
+- ⏮ ⏭ jump by sentence (across pages), ■ stops, the speed button opens a 0.5×–2× slider, ∞ keeps reading until you stop.
+- Pinch (or the + / − buttons) zooms the pages; 🌙 turns on dark pages.
 - Reading is sentence-by-sentence, so intonation stays natural across line breaks.
 - The app remembers the page you were on for each PDF. Gemini-read pages are cached in IndexedDB.
 
 The page detects `window.AndroidTTS` and uses it when present; in a normal browser it falls back to the Web Speech API.
-To change the UI, edit `index.html` and rebuild — no Kotlin changes needed.
-
-## Publishing to the Play Store
-
-The APK is signed with the debug key so it installs directly on any phone. For the Play Store you'll need
-your own keystore (`Build → Generate Signed Bundle / APK`) and to change `applicationId` in `app/build.gradle.kts`
-to something that's yours, e.g. `in.yourname.pdfvoicereader`.
+To change the UI or behaviour, edit the files under `app/src/main/assets/` and rebuild — Kotlin changes are only needed
+for native features. The same files run in a desktop browser (serve the folder with any static server).

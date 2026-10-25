@@ -14,11 +14,6 @@ import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 
-/** Hook the notification's Pause button uses to reach the page. Set by MainActivity. */
-object PlaybackControl {
-    var onPause: (() -> Unit)? = null
-}
-
 /**
  * Keeps the process (and the WebView that drives line-after-line reading) alive while speech is playing,
  * so reading carries on with the screen off or the app in the background.

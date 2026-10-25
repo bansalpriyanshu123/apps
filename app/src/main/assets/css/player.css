@@ -1,0 +1,24 @@
+/* Bottom player bar and the speed panel. */
+
+/* Player */
+.now { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--border); box-shadow: 0 -6px 20px rgba(0,0,0,.08); display: none; flex-direction: column; gap: 8px; z-index: 5; }
+.now.show { display: flex; }
+.now-info { display: flex; align-items: center; gap: 10px; min-height: 3em; }
+.now .pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--border); flex: none; }
+.now.playing .pulse { background: var(--accent); animation: pulse 1.1s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { transform: scale(.7); opacity: .5 } 50% { transform: scale(1); opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .now .pulse, .badge .spin { animation: none !important } .line { transition: none } }
+.now .text { flex: 1; font-size: 1.05rem; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.now .text.idle { color: var(--muted); }
+.now .meta { color: var(--muted); font-size: 0.8rem; white-space: nowrap; }
+.now-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.now-ctl .btn.round { width: 48px; height: 48px; min-width: 48px; border-radius: 50%; padding: 0; font-size: 1.2rem; }
+.now-ctl select { flex: 1; min-width: 0; max-width: 220px; margin-left: auto; }
+#speedBtn { min-width: 3.9em; font-variant-numeric: tabular-nums; font-weight: 600; }
+.speed-pop { position: absolute; left: 14px; bottom: calc(100% + 8px); width: min(380px, calc(100% - 28px)); background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 10px 30px rgba(0,0,0,.25); padding: 12px 14px 14px; display: none; flex-direction: column; gap: 10px; }
+.speed-pop.show { display: flex; }
+.speed-pop .sp-row { display: flex; align-items: center; gap: 10px; }
+.speed-pop input[type="range"] { flex: 1; min-width: 0; accent-color: var(--accent); height: 28px; }
+.speed-pop .sp-val { text-align: center; font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.speed-pop .sp-presets { display: flex; gap: 8px; justify-content: space-between; }
+.speed-pop .sp-presets .btn { flex: 1; padding: 6px 4px; min-height: 34px; font-variant-numeric: tabular-nums; }

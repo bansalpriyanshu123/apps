@@ -20,7 +20,6 @@ import android.webkit.WebView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import org.json.JSONArray
 import org.json.JSONObject
@@ -61,10 +60,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(webView)
         WebView.setWebContentsDebuggingEnabled((applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0)
 
-        val assetLoader = WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this))
-            .build()
-
         with(webView.settings) {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -74,11 +69,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.webViewClient = object : WebViewClientCompat() {
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
-                val response = assetLoader.shouldInterceptRequest(request.url)
-                android.util.Log.d("PVR", "intercept ${request.url} -> ${if (response == null) "NOT SERVED (goes to network)" else "served from assets"}")
-                return response
-            }
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
+                serveAsset(request.url)
             override fun onPageFinished(view: WebView?, url: String?) {
                 if (ttsReady) notifyVoicesChanged()
             }
@@ -114,7 +106,46 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Served over https from the app's own assets so localStorage and relative paths behave normally.
-        webView.loadUrl("https://appassets.androidapp.com/assets/index.html")
+        webView.loadUrl("https://$ASSET_HOST/assets/index.html")
+    }
+
+    /**
+     * Serves https://appassets.androidapp.com/assets/<file> straight from the APK's assets folder.
+     * (androidx WebViewAssetLoader returned nothing for index.html on this device, so the page fell through
+     * to the network and failed with ERR_NAME_NOT_RESOLVED.)
+     */
+    private fun serveAsset(url: Uri): WebResourceResponse? {
+        if (url.host != ASSET_HOST) return null
+        val path = url.path.orEmpty()
+        if (!path.startsWith("/assets/")) return null
+        val name = path.removePrefix("/assets/")
+        return try {
+            val stream = assets.open(name)
+            val mime = mimeFor(name)
+            val text = mime.startsWith("text/") || mime.endsWith("javascript") || mime.endsWith("json")
+            WebResourceResponse(mime, if (text) "utf-8" else null, stream)
+        } catch (e: java.io.IOException) {
+            android.util.Log.e("PVR", "asset not found: $name", e)
+            WebResourceResponse(
+                "text/plain", "utf-8", 404, "Not Found", emptyMap(),
+                java.io.ByteArrayInputStream(ByteArray(0))
+            )
+        }
+    }
+
+    private fun mimeFor(name: String): String = when (name.substringAfterLast('.', "").lowercase(Locale.ROOT)) {
+        "html", "htm" -> "text/html"
+        "js", "mjs" -> "text/javascript"
+        "css" -> "text/css"
+        "json", "map" -> "application/json"
+        "wasm" -> "application/wasm"
+        "svg" -> "image/svg+xml"
+        "png" -> "image/png"
+        "jpg", "jpeg" -> "image/jpeg"
+        "woff2" -> "font/woff2"
+        "woff" -> "font/woff"
+        "bcmap" -> "application/octet-stream"
+        else -> "application/octet-stream"
     }
 
     override fun onDestroy() {
@@ -220,5 +251,10 @@ class MainActivity : AppCompatActivity() {
                 .drop(2).joinToString("-")
             return if (variant.isNotBlank()) "$display · $variant" else display
         }
+    }
+
+    companion object {
+        /** Virtual host the page is served from; index.html checks for it to know it is inside the app. */
+        private const val ASSET_HOST = "appassets.androidapp.com"
     }
 }

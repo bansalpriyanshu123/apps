@@ -11,7 +11,6 @@
 // classified the entry is null and the caller falls back to guessing from position.
 
 import { KIND } from '../text/lost-glyphs.js';
-import { pdfOps } from './pdf-engine.js';
 
 const NUL = String.fromCharCode(0);
 const AA = 'ा';
@@ -63,35 +62,26 @@ async function classify(glyph, fontId, widths, page) {
 }
 
 /**
- * @param page  a pdf.js page
+ * @param page    a pdf.js page
+ * @param glyphs  the page's glyphs (services/page-glyphs.js); those the glyph table already put right (`text` set) are
+ *                not lost any more
  * @returns one kind (or null) per NUL that page.getTextContent() reports, in the same order
  */
-export async function classifyLostGlyphs(page) {
-  const OPS = pdfOps();
-  const ops = await page.getOperatorList();
+export async function classifyLostGlyphs(page, glyphs) {
   const lost = [];
   const widthsByFont = new Map();
-  let fontId = null;
-
-  for (let i = 0; i < ops.fnArray.length; i++) {
-    const fn = ops.fnArray[i];
-    if (fn === OPS.setFont) { fontId = ops.argsArray[i][0]; continue; }
-    if (fn !== OPS.showText && fn !== OPS.showSpacedText) continue;
-    if (!widthsByFont.has(fontId)) widthsByFont.set(fontId, {});
-    const widths = widthsByFont.get(fontId);
-    for (const glyph of ops.argsArray[i][0] || []) {
-      if (!glyph || typeof glyph !== 'object') continue;       // numbers are kerning adjustments
-      const unicode = glyph.unicode || '';
-      if (unicode === I) widths.i = glyph.width;
-      else if (unicode === AA) widths.aa = glyph.width;
-      for (let n = countNul(unicode); n > 0; n--) lost.push({ glyph, fontId });
-    }
+  for (const entry of glyphs) {
+    if (!widthsByFont.has(entry.fontId)) widthsByFont.set(entry.fontId, {});
+    const widths = widthsByFont.get(entry.fontId);
+    if (entry.unicode === I) widths.i = entry.glyph.width;
+    else if (entry.unicode === AA) widths.aa = entry.glyph.width;
+    if (entry.text === null) for (let n = countNul(entry.unicode); n > 0; n--) lost.push(entry);
   }
   for (const widths of widthsByFont.values()) knownWidths = { ...knownWidths, ...widths };
 
   const kinds = [];
-  for (const { glyph, fontId: id } of lost) {
-    kinds.push(await classify(glyph, id, { ...knownWidths, ...widthsByFont.get(id) }, page));
+  for (const { glyph, fontId } of lost) {
+    kinds.push(await classify(glyph, fontId, { ...knownWidths, ...widthsByFont.get(fontId) }, page));
   }
   return kinds;
 }

@@ -2,6 +2,7 @@
 
 import { el } from '../core/dom.js';
 import { state } from '../core/state.js';
+import { emit } from '../core/bus.js';
 import { PREF } from '../core/config.js';
 import { loadPref } from '../core/store.js';
 import { docxToHtml } from '../services/docx-engine.js';
@@ -67,6 +68,7 @@ export async function openFile(file) {
     state.docId = opened.id;
     state.docVisualOrder = false;          // a new document starts without assumptions about its text layer
     state.resumePos = null;
+    emit('document:opened');
 
     el.banner.classList.remove('show');
     el.empty.style.display = 'none';

@@ -20,6 +20,7 @@ import { renderPlayState, showIdle, showPreparing, showSentence } from './now-ba
 
 let token = 0;
 let keepAliveOn = false;
+let ahead = null;          // the next sentence, already handed to the speech engine behind the current one: { p, s, job }
 
 function renderState() {
   renderPlayState(state.playing, !!(state.active || state.playing || state.resumePos));
@@ -88,6 +89,7 @@ export async function speakSentence(p, s, auto, fromIdx) {
   if (!state.doc) return;
   const myToken = ++token;
   cancelJob();
+  ahead = null;
   if (!auto) stopAudio();
   state.playing = true;
   renderState();
@@ -113,17 +115,7 @@ export async function speakSentence(p, s, auto, fromIdx) {
   renderState();
 
   const voice = selectedVoice();
-  const job = newJob(
-    () => {
-      if (myToken !== token) return;
-      if (state.cont) speakSentence(position.p, position.s + 1, true); else endPlayback();
-    },
-    (message) => {
-      if (myToken !== token) return;
-      endPlayback();
-      setNotice('Speech failed: ' + message, true);
-    }
-  );
+  const job = newJob(() => sentenceEnded(position, myToken), (message) => speechFailed(message, myToken));
   speakText(sentenceText(pg.lines, pg.segs[position.s], from), voice, state.rate, job, auto);
   if (voice && voice.gemini && state.cont) {
     for (let k = 1; k <= 2; k++) {
@@ -131,9 +123,51 @@ export async function speakSentence(p, s, auto, fromIdx) {
       if (next) prefetchGemini(next.text, voice);
     }
   }
+  queueAhead(position, voice, myToken);
+}
+
+function speechFailed(message, myToken) {
+  if (myToken !== token) return;
+  endPlayback();
+  setNotice('Speech failed: ' + message, true);
+}
+
+/**
+ * The current sentence has been spoken: carry on with the next one. If it was already queued in the engine (see
+ * queueAhead) it is playing right now, so only the highlight and the player bar move on.
+ */
+function sentenceEnded(position, myToken) {
+  if (myToken !== token) return;
+  if (!state.cont) { stopAudio(); endPlayback(); return; }       // ("keep reading" was switched off: drop what is queued)
+  if (ahead && ahead.p === position.p && ahead.s === position.s + 1) {
+    const next = ahead;
+    ahead = null;
+    setActive(next.p, next.s, 0);
+    renderState();
+    queueAhead(next, selectedVoice(), myToken);
+  } else {
+    speakSentence(position.p, position.s + 1, true);
+  }
+}
+
+/**
+ * Hands the next sentence of the same page to the device engine while the current one is still playing, so it is
+ * ready the moment the current one ends: otherwise every sentence starts only after the previous one is over and its
+ * start-up (about half a second) makes short lines sound slow and choppy. Gemini voices have their own prefetching.
+ */
+function queueAhead(position, voice, myToken) {
+  if (!state.cont || (voice && voice.gemini)) return;
+  const pg = state.pages[position.p - 1];
+  const next = pg && pg.segs[position.s + 1];
+  if (!next || !deviceTts.available) return;
+  const queued = { p: position.p, s: position.s + 1, job: null };
+  queued.job = { cancelled: false, onend: () => sentenceEnded(queued, myToken), onerror: (message) => speechFailed(message, myToken) };
+  ahead = queued;
+  speakText(sentenceText(pg.lines, next), voice, state.rate, queued.job, true);
 }
 
 function endPlayback() {
+  ahead = null;
   state.playing = false;
   state.resumePos = null;
   setActive(null);
@@ -143,6 +177,7 @@ function endPlayback() {
 export function pause() {
   if (!state.playing) return;
   token++;
+  ahead = null;
   cancelJob();
   stopAudio();
   state.resumePos = state.active;
@@ -152,6 +187,7 @@ export function pause() {
 
 export function stop() {
   token++;
+  ahead = null;
   cancelJob();
   stopAudio();
   state.playing = false;

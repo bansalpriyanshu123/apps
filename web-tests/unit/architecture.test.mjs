@@ -18,8 +18,9 @@ const ALLOWED = {
   viewer: ['core', 'document', 'text'],
   player: ['core', 'document', 'services', 'text', 'ui', 'viewer'],
   settings: ['core', 'player', 'services', 'ui'],
-  app: ['core', 'document', 'player', 'services', 'settings', 'ui', 'viewer'],
-  '.': ['core', 'document', 'player', 'services', 'settings', 'ui', 'viewer', 'app', 'text']   // main.js
+  search: ['core', 'document', 'text', 'viewer'],
+  app: ['core', 'document', 'player', 'search', 'services', 'settings', 'ui', 'viewer'],
+  '.': ['core', 'document', 'player', 'services', 'settings', 'ui', 'viewer', 'app', 'text', 'search']   // main.js
 };
 
 function listModules(dir = JS_ROOT) {

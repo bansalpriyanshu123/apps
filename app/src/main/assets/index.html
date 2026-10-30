@@ -11,39 +11,68 @@
 <link rel="stylesheet" href="css/player.css">
 <link rel="stylesheet" href="css/settings.css">
 <link rel="stylesheet" href="css/docx.css">
+<link rel="stylesheet" href="css/search.css">
 <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body class="start">
+
+<svg class="sprite" width="0" height="0" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M14.5 5.5 8 12l6.5 6.5"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9.5 5.5 16 12l-6.5 6.5"/></symbol>
+    <symbol id="i-chevron-up" viewBox="0 0 24 24"><path d="M5.5 14.5 12 8l6.5 6.5"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="M5.5 9.5 12 16l6.5-6.5"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15.2 15.2 4.8 4.8"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.2h7a2 2 0 0 1 2 2v7.8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.2A8 8 0 1 1 9.8 4a6.4 6.4 0 0 0 10.2 10.2z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5.5 12h13"/></symbol>
+    <symbol id="i-skip-back" viewBox="0 0 24 24"><path d="M6.5 5.5v13"/><path fill="currentColor" d="M18 6.4v11.2a.6.6 0 0 1-.95.5l-7.6-5.6a.6.6 0 0 1 0-1l7.6-5.6a.6.6 0 0 1 .95.5z"/></symbol>
+    <symbol id="i-skip-forward" viewBox="0 0 24 24"><path d="M17.5 5.5v13"/><path fill="currentColor" d="M6 6.4v11.2a.6.6 0 0 0 .95.5l7.6-5.6a.6.6 0 0 0 0-1L6.95 5.9A.6.6 0 0 0 6 6.4z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path fill="currentColor" d="M8 5.6v12.8a.8.8 0 0 0 1.2.7l10.2-6.4a.8.8 0 0 0 0-1.4L9.2 4.9A.8.8 0 0 0 8 5.6z"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect fill="currentColor" x="6.5" y="5" width="3.8" height="14" rx="1.2"/><rect fill="currentColor" x="13.7" y="5" width="3.8" height="14" rx="1.2"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect fill="currentColor" x="6.5" y="6.5" width="11" height="11" rx="2.4"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 3.5 20 6.5l-3 3"/><path d="M4 11V9.5a3 3 0 0 1 3-3h13"/><path d="M7 20.5 4 17.5l3-3"/><path d="M20 13v1.5a3 3 0 0 1-3 3H4"/></symbol>
+  </defs>
+</svg>
+
 
 <header class="bar" id="bar">
   <div class="brand">PDF Voice Reader<small>किसी भी पंक्ति पर क्लिक करें, वह बोली जाएगी</small></div>
 
   <div class="ctl" id="pagerCtl" hidden>
-    <button class="btn icon" id="prevBtn" aria-label="Previous page">‹</button>
+    <button class="btn icon" id="prevBtn" aria-label="Previous page"><svg class="ic" aria-hidden="true"><use href="#i-chevron-left"/></svg></button>
     <span class="pager"><input type="number" id="pageInput" min="1" value="1" aria-label="Page number"> / <span id="pageTotal">–</span></span>
-    <button class="btn icon" id="nextBtn" aria-label="Next page">›</button>
+    <button class="btn icon" id="nextBtn" aria-label="Next page"><svg class="ic" aria-hidden="true"><use href="#i-chevron-right"/></svg></button>
   </div>
 
   <div class="ctl">
-    <button class="btn primary" id="openBtn">Open<span class="long"> file</span></button>
+    <button class="btn primary" id="openBtn"><svg class="ic" aria-hidden="true"><use href="#i-folder"/></svg><span>Open<span class="long"> file</span></span></button>
     <input type="file" id="fileInput" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" hidden>
-    <button class="btn icon" id="darkBtn" aria-pressed="false" title="Dark pages (black background)" aria-label="Dark pages">🌙</button>
-    <button class="btn icon" id="settingsBtn" title="Settings" aria-label="Settings">⚙</button>
+    <button class="btn icon" id="searchBtn" title="Search in the document" aria-label="Search"><svg class="ic" aria-hidden="true"><use href="#i-search"/></svg></button>
+    <button class="btn icon" id="darkBtn" aria-pressed="false" title="Dark pages (black background)" aria-label="Dark pages"><svg class="ic ic-moon" aria-hidden="true"><use href="#i-moon"/></svg><svg class="ic ic-sun" aria-hidden="true"><use href="#i-sun"/></svg></button>
+    <button class="btn icon" id="settingsBtn" title="Settings" aria-label="Settings"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg></button>
   </div>
 </header>
+
+<div class="searchbar" id="searchbar" hidden>
+  <input type="search" id="searchInput" placeholder="Search in this document" autocomplete="off" enterkeyhint="search" aria-label="Search text">
+  <span class="count" id="searchCount" aria-live="polite"></span>
+  <button class="btn icon" id="searchPrev" aria-label="Previous match" title="Previous match"><svg class="ic" aria-hidden="true"><use href="#i-chevron-up"/></svg></button>
+  <button class="btn icon" id="searchNext" aria-label="Next match" title="Next match"><svg class="ic" aria-hidden="true"><use href="#i-chevron-down"/></svg></button>
+  <button class="btn icon" id="searchClose" aria-label="Close search" title="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
+</div>
 
 <main>
   <div class="stage" id="stage">
     <div class="empty" id="empty">
-      <svg class="start-logo" viewBox="0 0 64 64" aria-hidden="true">
-        <rect x="12" y="6" width="40" height="52" rx="6" fill="currentColor" opacity=".14"/>
-        <rect x="12" y="6" width="40" height="52" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
-        <path d="M22 22h20M22 30h20M22 38h11" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-        <path d="M40 40l9 5-9 5z" fill="currentColor"/>
-      </svg>
+      <svg class="start-logo" viewBox="0 0 48 48" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 7.5h14l8 8V38a2.5 2.5 0 0 1-2.5 2.5h-19A2.5 2.5 0 0 1 11 38V10a2.5 2.5 0 0 1 2-2.5z"/><path d="M27 7.5v8h8"/><path d="M17 25h7M17 31h5"/><path d="M30.5 25a5 5 0 0 1 0 7M34 21.5a9.5 9.5 0 0 1 0 14"/></svg>
       <h1>PDF Voice Reader</h1>
       <p class="start-sub">हिंदी PDF या Word फ़ाइल सुनें</p>
-      <button class="btn primary start-btn" id="startOpenBtn" type="button">Open file</button>
+      <button class="btn primary start-btn" id="startOpenBtn" type="button"><svg class="ic" aria-hidden="true"><use href="#i-folder"/></svg><span>Open file</span></button>
       <p class="start-hint">PDF · Word (.docx)</p>
     </div>
 
@@ -61,9 +90,9 @@
 <div class="now" id="now">
   <div class="speed-pop" id="speedPop" role="dialog" aria-label="Reading speed">
     <div class="sp-row">
-      <button class="btn icon" id="speedDown" aria-label="Slower">−</button>
+      <button class="btn icon" id="speedDown" aria-label="Slower"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg></button>
       <input type="range" id="speedRange" min="0.5" max="2" step="0.05" value="1" aria-label="Reading speed">
-      <button class="btn icon" id="speedUp" aria-label="Faster">+</button>
+      <button class="btn icon" id="speedUp" aria-label="Faster"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
     </div>
     <div class="sp-val" id="speedVal">1.0×</div>
     <div class="sp-presets">
@@ -80,25 +109,29 @@
     <span class="meta" id="nowMeta"></span>
   </div>
   <div class="now-ctl">
-    <button class="btn icon" id="prevSeg" aria-label="Previous sentence" title="Previous sentence">⏮</button>
+    <div class="transport">
+    <button class="btn icon ghost" id="prevSeg" aria-label="Previous sentence" title="Previous sentence"><svg class="ic" aria-hidden="true"><use href="#i-skip-back"/></svg></button>
     <button class="btn primary round" id="playBtn" aria-label="Play" title="Play / pause"></button>
-    <button class="btn icon" id="nextSeg" aria-label="Next sentence" title="Next sentence">⏭</button>
-    <button class="btn icon" id="stopBtn" aria-label="Stop" title="Stop" disabled>■</button>
-    <button class="btn" id="speedBtn" title="Speed">1.0×</button>
-    <button class="btn icon" id="contBtn" aria-pressed="false" title="Keep reading until I stop">∞</button>
+    <button class="btn icon ghost" id="nextSeg" aria-label="Next sentence" title="Next sentence"><svg class="ic" aria-hidden="true"><use href="#i-skip-forward"/></svg></button>
+    <button class="btn icon ghost" id="stopBtn" aria-label="Stop" title="Stop" disabled><svg class="ic" aria-hidden="true"><use href="#i-stop"/></svg></button>
+    <button class="btn pill" id="speedBtn" title="Reading speed">1.0×</button>
+    </div>
+    <div class="voice-row">
     <select id="voice" aria-label="Voice"><option value="">Loading voices…</option></select>
+    <button class="btn icon ghost" id="contBtn" aria-pressed="false" title="Keep reading until I stop" aria-label="Keep reading"><svg class="ic" aria-hidden="true"><use href="#i-repeat"/></svg></button>
+    </div>
   </div>
 </div>
 
 <div class="zoombar" id="zoombar" aria-label="Zoom">
-  <button class="btn icon" id="zoomIn" aria-label="Zoom in" title="Zoom in">+</button>
+  <button class="btn icon" id="zoomIn" aria-label="Zoom in" title="Zoom in"><svg class="ic" aria-hidden="true"><use href="#i-plus"/></svg></button>
   <button class="btn" id="zoomVal" title="Tap to fit the page width">100%</button>
-  <button class="btn icon" id="zoomOut" aria-label="Zoom out" title="Zoom out">&minus;</button>
+  <button class="btn icon" id="zoomOut" aria-label="Zoom out" title="Zoom out"><svg class="ic" aria-hidden="true"><use href="#i-minus"/></svg></button>
 </div>
 
 <div class="scrim" id="scrim"></div>
 <aside class="sheet" id="sheet" aria-label="Settings">
-  <button class="btn icon close" id="closeSheet" aria-label="Close">✕</button>
+  <button class="btn icon close" id="closeSheet" aria-label="Close"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
   <h2>Settings</h2>
   <p class="sub">Reading behaviour, and Gemini for PDFs whose text comes out garbled.</p>
 
@@ -106,13 +139,13 @@
     <label for="contMode">When I tap a line</label>
     <select id="contMode">
       <option value="0">Read only that sentence</option>
-      <option value="1">Keep reading from there until I press Stop</option>
+      <option value="1">Keep reading until I press Stop</option>
     </select>
-    <div class="help">Continuous reading flows across page breaks. The ∞ button in the player is the same setting.</div>
+    <div class="help">Continuous reading flows across page breaks. The repeat button in the player is the same setting.</div>
   </div>
 
   <div class="field">
-    <button class="btn" id="testVoice" type="button">▶ Hear the selected voice</button>
+    <button class="btn" id="testVoice" type="button"><svg class="ic" aria-hidden="true"><use href="#i-play"/></svg><span>Hear the selected voice</span></button>
   </div>
 
   <h2 class="sec">Gemini</h2>
@@ -130,9 +163,9 @@
   <div class="field">
     <label for="ocrMode">Read page text with Gemini</label>
     <select id="ocrMode">
-      <option value="auto">Automatically, when the PDF text looks garbled or is missing</option>
+      <option value="auto">Automatic: when text looks garbled or is missing</option>
       <option value="always">Always, for every page</option>
-      <option value="never">Never — use the PDF's own text</option>
+      <option value="never">Never: use the PDF's own text</option>
     </select>
     <div class="help">Each page is read once, after you stay on it for a moment, and remembered on this device.</div>
   </div>

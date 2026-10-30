@@ -78,7 +78,13 @@ export function needsSpaceBetween(textSoFar, nextChunk, gap, lineHeight) {
 /** Collapses whitespace and removes a space after a conjunct mark ("राजव् यवस् था" -> "राजव्यवस्था"). */
 export function tidyLineText(text) {
   return resolveLostGlyphs(text)
+    // Wingdings bullets come out of some PDFs as control / private-use characters ("\x89Text"): at the start of a line
+    // that is a bullet, anywhere else it is noise a speech engine must not see
+    .replace(/^[\u0000-\u0008\u000E-\u001F\u007F-\u009F\uE000-\uF8FF]+/, '\u2022 ')
+    .replace(/[\u0000-\u0008\u000E-\u001F\u007F-\u009F\uE000-\uF8FF]/g, '')
     .replace(/\s+/g, ' ')
+    // a vowel sign, anusvara or virama never starts a word: the space before it is the PDF's ("प्र ाप्त", "ज ो")
+    .replace(/ (?=[ऀ-ःऺ-्॑-ॗॢॣ])/g, '')
     // a lone consonant stranded after a space ("प्रदे श", "अध्यादे श") is the rest of the word: no Hindi word is one
     // consonant, and the PDF's own text has the stray space
     .replace(/([ा-ौ]) ([क-ह])(?=$|[\s,.;:)।])/g, '$1$2')

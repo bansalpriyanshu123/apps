@@ -8,7 +8,11 @@ export const el = {
   bar: byId('bar'),
   pagerCtl: byId('pagerCtl'), prevPage: byId('prevBtn'), nextPage: byId('nextBtn'),
   pageInput: byId('pageInput'), pageTotal: byId('pageTotal'),
-  openBtn: byId('openBtn'), fileInput: byId('fileInput'), darkBtn: byId('darkBtn'), settingsBtn: byId('settingsBtn'),
+  openBtn: byId('openBtn'), fileInput: byId('fileInput'), searchBtn: byId('searchBtn'), darkBtn: byId('darkBtn'), settingsBtn: byId('settingsBtn'),
+
+  // search bar
+  searchbar: byId('searchbar'), searchInput: byId('searchInput'), searchCount: byId('searchCount'),
+  searchPrev: byId('searchPrev'), searchNext: byId('searchNext'), searchClose: byId('searchClose'),
 
   // document area
   main: document.querySelector('main'),

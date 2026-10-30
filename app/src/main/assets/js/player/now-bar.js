@@ -4,8 +4,9 @@
 import { el } from '../core/dom.js';
 import { IDLE_TEXT } from '../core/config.js';
 
-const PLAY_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
-const PAUSE_ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+const icon = (name) => '<svg class="ic ic-lg" aria-hidden="true"><use href="#i-' + name + '"/></svg>';
+const PLAY_ICON = icon('play');
+const PAUSE_ICON = icon('pause');
 
 export function showNowBar() { el.now.classList.add('show'); }
 

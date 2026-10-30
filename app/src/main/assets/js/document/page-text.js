@@ -9,6 +9,8 @@ import { ocrCache } from '../core/ocr-cache.js';
 import { transformMatrix } from '../services/pdf-engine.js';
 import { readPageWithGemini } from '../services/gemini-ocr.js';
 import { classifyLostGlyphs } from '../services/glyph-kinds.js';
+import { readPageGlyphs } from '../services/page-glyphs.js';
+import { correctItems, usesSpaceGlyphs } from '../text/glyph-table.js';
 import { groupLines } from '../text/line-grouping.js';
 import { hasLostGlyphs, looksGarbled } from '../text/devanagari.js';
 import { buildSentences } from '../text/sentences.js';
@@ -60,22 +62,49 @@ const countNul = (text) => text.split(String.fromCharCode(0)).length - 1;
  * drawing instructions can tell (see services/glyph-kinds.js). If the glyphs and the NULs do not line up, no tags
  * are added and the text repair guesses from position instead.
  */
-async function withLostGlyphKinds(pg, items) {
+async function withLostGlyphKinds(pg, items, glyphs) {
   let kinds = null;
   if (pg.damaged) {
-    try { kinds = await classifyLostGlyphs(pg.page); } catch (err) { kinds = null; }
+    try { kinds = await classifyLostGlyphs(pg.page, glyphs || await readPageGlyphs(pg.page)); } catch (err) { kinds = null; }
     const nulls = items.reduce((total, item) => total + countNul(item.str), 0);
     if (!kinds || kinds.length !== nulls) kinds = null;
   }
   let next = 0;
+  let spaceBefore = false;
   const kept = [];
   for (const item of items) {
     const count = kinds ? countNul(item.str) : 0;
     const itemKinds = kinds && count ? kinds.slice(next, next + count) : undefined;
     next += count;
-    if (item.str && item.str.trim()) kept.push({ str: item.str, transform: item.transform, width: item.width, kinds: itemKinds });
+    if (item.str && item.str.trim()) {
+      // a blank item is a real space glyph: where all spaces are real ones, the next chunk starts with it
+      const str = spaceBefore && item.exactSpaces && !/^\s/.test(item.str) ? ' ' + item.str : item.str;
+      kept.push({ str, transform: item.transform, width: item.width, kinds: itemKinds, exactSpaces: item.exactSpaces });
+      spaceBefore = false;
+    } else if (item.str) {
+      spaceBefore = true;
+    }
   }
   return kept;
+}
+
+const DEVANAGARI_OR_LOST = new RegExp('[' + String.fromCharCode(0x900) + '-' + String.fromCharCode(0x97F) + String.fromCharCode(0) + String.fromCharCode(0xFFFD) + ']');
+
+/**
+ * Puts right the text of glyphs whose font is in the table of known fonts (text/glyph-table.js), for PDFs whose own
+ * glyph -> text map is wrong. Pages without Devanagari are not touched. If the glyphs cannot be matched up with the
+ * text items the page is left exactly as pdf.js produced it.
+ * @returns { items, glyphs } - the (possibly corrected) items and the page's glyphs (null when they were not read)
+ */
+async function withGlyphTable(pg, items) {
+  if (!items.some((item) => DEVANAGARI_OR_LOST.test(item.str))) return { items, glyphs: null };
+  let glyphs;
+  try { glyphs = await readPageGlyphs(pg.page); } catch (err) { return { items, glyphs: null }; }
+  if (!glyphs.some((glyph) => glyph.text !== null)) return { items, glyphs };
+  const corrected = correctItems(items, glyphs, { dropInsertedSpaces: usesSpaceGlyphs(glyphs) });
+  if (corrected) return { items: corrected, glyphs };
+  for (const glyph of glyphs) glyph.text = null;
+  return { items, glyphs };
 }
 
 function extractPdfLines(pg) {
@@ -94,9 +123,10 @@ function extractPdfLines(pg) {
 export function ensureText(pg, useGemini) {
   if (!pg.textReady) {
     pg.textReady = loadPage(pg).then(() => pg.page.getTextContent()).then(async (content) => {
-      pg.damaged = hasLostGlyphs(content.items);
+      const { items, glyphs } = await withGlyphTable(pg, content.items);
+      pg.damaged = hasLostGlyphs(items);
       if (pg.damaged) state.docVisualOrder = true;
-      pg.rawItems = await withLostGlyphKinds(pg, content.items);
+      pg.rawItems = await withLostGlyphKinds(pg, items, glyphs);
       extractPdfLines(pg);
       pg.garbled = looksGarbled(pg.pdfLines);
       const cached = await ocrCache.get(cacheKey(pg));

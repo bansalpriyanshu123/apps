@@ -1,4 +1,4 @@
-/* Top bar: title, page pager, open / dark / settings buttons. */
+/* Top bar: title, page pager, open / search / dark / settings buttons. */
 
 /* fixed (not sticky) so the bar stays put when the zoomed document is scrolled sideways; <main> is pushed down by --bar-h */
 .bar {
@@ -7,18 +7,30 @@
   right: 0;
   top: env(safe-area-inset-top, 0px);
   z-index: 5;
-  background: var(--surface);
+  background: var(--glass);
+  -webkit-backdrop-filter: saturate(1.5) blur(16px);
+  backdrop-filter: saturate(1.5) blur(16px);
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  gap: 10px 14px;
-  padding: 10px 16px;
+  gap: 8px 10px;
+  padding: 8px 12px;
 }
-.brand { font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em; margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.brand { font-weight: 700; font-size: 1.08rem; letter-spacing: -0.01em; margin-right: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .brand small { display: block; font-weight: 400; font-size: 0.78rem; color: var(--muted); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; }
-.ctl { display: flex; align-items: center; gap: 8px; }
+.ctl { display: flex; align-items: center; gap: 4px; }
 .bar > .ctl:last-child { margin-left: auto; }
+.bar .btn.icon { background: transparent; border-color: transparent; }
+.bar .btn.icon.on { background: var(--accent-soft); }
+.bar .btn.primary { padding: 0 16px; border-radius: 999px; }
 
-.pager { font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; }
-.pager input { width: 2.8em; text-align: right; border: 1px solid var(--border); border-radius: 6px; padding: 4px; background: var(--surface); -moz-appearance: textfield; }
+/* "‹ 8 / 214 ›": one rounded group */
+#pagerCtl { background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px; gap: 0; }
+#pagerCtl .btn.icon { min-height: 40px; width: 40px; min-width: 40px; }
+.pager { font-variant-numeric: tabular-nums; text-align: center; white-space: nowrap; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 2px; }
+.pager input { width: 2.9em; min-height: 34px; text-align: center; border: none; border-radius: 10px; padding: 0 2px; background: var(--surface); color: var(--ink); font-weight: 700; box-shadow: var(--shadow-sm); -moz-appearance: textfield; }
 .pager input::-webkit-inner-spin-button, .pager input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* dark-pages button shows a moon, or a sun while dark pages are on */
+#darkBtn .ic-sun, #darkBtn[aria-pressed="true"] .ic-moon { display: none; }
+#darkBtn[aria-pressed="true"] .ic-sun { display: block; }

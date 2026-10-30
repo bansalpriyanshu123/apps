@@ -64,3 +64,10 @@ test('legacy-font text (Kruti Dev style) is recognised as garbled, real Hindi an
   assert.equal(looksGarbled([{ text: '%%% 000 %%% 000 %%% 000 %%% 000 %%% 000' }]), true);
   assert.equal(looksGarbled([{ text: 'short' }]), false);              // too little text to judge
 });
+
+test('a Wingdings bullet that came out as a control character becomes a bullet at the start of a line and vanishes elsewhere', async () => {
+  const { tidyLineText } = await import('../../app/src/main/assets/js/text/devanagari.js');
+  assert.equal(tidyLineText('\u0089लेनिन के गिरते'), '\u2022 लेनिन के गिरते');
+  assert.equal(tidyLineText('\uF034\u0007वर्सेल्स संधि'), '\u2022 वर्सेल्स संधि');
+  assert.equal(tidyLineText('श्\u001Aांृखला'), 'श्ांृखला');
+});

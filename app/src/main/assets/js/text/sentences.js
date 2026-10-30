@@ -6,6 +6,11 @@
 const SENTENCE_END = /[।॥.?!]["'”’)\]]*$/;
 const LIST_ITEM = /^(?:[•●○▪·*\-–—]\s|\(?[0-9०-९]{1,3}[.)]\s)/;
 const MAX_SENTENCE_CHARS = 280;
+// a vowel sign / anusvara / virama never starts a word: a line that begins with one continues the word of the line before
+const CONTINUES_WORD = /^[ऀ-ःऺ-्॑-ॗॢॣ]/;
+
+/** Joins line texts with a space, except where the next line continues a word. */
+const joinLines = (texts) => texts.reduce((all, text) => (all === '' ? text : all + (CONTINUES_WORD.test(text) ? '' : ' ') + text), '');
 
 /**
  * Splits lines into sentences. Sets `line.seg` (index of the sentence a line belongs to) on every line.
@@ -28,7 +33,7 @@ export function buildSentences(lines) {
       current = null;
     }
     if (!current) current = { text: '', lines: [] };
-    current.text += (current.text ? ' ' : '') + line.text;
+    current.text = joinLines([current.text, line.text]);
     current.lines.push(index);
     line.seg = sentences.length;
     previous = line;
@@ -40,4 +45,4 @@ export function buildSentences(lines) {
 
 /** The text of a sentence, starting `from` lines into it (a tap on a later line starts mid-sentence). */
 export const sentenceText = (lines, sentence, from = 0) =>
-  sentence.lines.slice(from).map((index) => lines[index].text).join(' ');
+  joinLines(sentence.lines.slice(from).map((index) => lines[index].text));

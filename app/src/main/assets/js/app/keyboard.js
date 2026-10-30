@@ -1,18 +1,21 @@
 // Keyboard shortcuts (desktop and Bluetooth keyboards).
-//   Space play/pause   <- / -> previous / next sentence   + / - / 0 zoom   Esc close the panel, else stop
+//   Ctrl+F search   Space play/pause   <- / -> previous / next sentence   + / - / 0 zoom   Esc close the panel, else stop
 
 import { state } from '../core/state.js';
 import { ZOOM } from '../core/config.js';
 import { closeSpeedPanel, isSpeedPanelOpen } from '../player/controls.js';
 import { step, stop, togglePlay } from '../player/playback.js';
+import { closeSearch, isSearchOpen, openSearch } from '../search/search-bar.js';
 import { hideSheet, isSheetOpen } from '../settings/settings-panel.js';
 import { setZoom, zoomBy } from '../viewer/zoom.js';
 
 export function initKeyboard() {
   document.addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f' && state.doc) { event.preventDefault(); openSearch(); return; }
     if (event.key === 'Escape') {
       if (isSpeedPanelOpen()) closeSpeedPanel();
       else if (isSheetOpen()) hideSheet();
+      else if (isSearchOpen()) closeSearch();
       else stop();
       return;
     }

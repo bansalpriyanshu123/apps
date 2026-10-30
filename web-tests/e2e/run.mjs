@@ -15,7 +15,7 @@
 //    3. PORT=9222 URL=https://appassets.androidapp.com/assets/index.html EMULATE=0 INJECT_DIR=app/src/main/assets \
 //         node web-tests/e2e/run.mjs <file.pdf> all
 //
-// steps: smoke | text | tap | zoom | dark | settings | docx | all
+// steps: smoke | text | tap | zoom | dark | settings | search | docx | all
 // env:   PORT, URL, EMULATE, INJECT_DIR, INJECT_WAIT (ms), OUT (screenshot folder),
 //        TEXT_PAGES (how many pages the text step reads, default 10), EXPECT_WORDS (comma separated words that must appear),
 //        DOCX (path of a .docx for the docx step)
@@ -122,6 +122,7 @@ if (INJECT_DIR) {
 const ok = (name, cond, extra) => { report[name] = cond ? 'PASS' : 'FAIL' + (extra !== undefined ? ' ' + JSON.stringify(extra) : ''); };
 
 // --- smoke: modules loaded, markup wired ---
+await evaluate(`(async () => { for (let i = 0; i < 60 && typeof window.pdfjsLib === 'undefined'; i++) await new Promise((r) => setTimeout(r, 250)); return 1; })()`);   // pdf.js loads lazily
 const boot = await evaluate(`JSON.stringify({
   title: document.title,
   pdfjs: typeof window.pdfjsLib,
@@ -129,13 +130,15 @@ const boot = await evaluate(`JSON.stringify({
   playIcon: document.getElementById('playBtn').innerHTML.length > 0,
   speedLabel: document.getElementById('speedBtn').textContent,
   zoomLabel: document.getElementById('zoomVal').textContent,
-  barH: getComputedStyle(document.documentElement).getPropertyValue('--bar-h')
+  barH: getComputedStyle(document.documentElement).getPropertyValue('--bar-h'),
+  startScreen: document.body.classList.contains('start') && getComputedStyle(document.getElementById('bar')).display === 'none'
 })`);
 const b = JSON.parse(boot);
+const document_start = (info) => info.startScreen === true;
 ok('boot: pdf.js loaded', b.pdfjs === 'object', b);
 ok('boot: play icon rendered', b.playIcon);
 ok('boot: speed label set', /×/.test(b.speedLabel), b.speedLabel);
-ok('boot: header height synced', parseFloat(b.barH) > 0, b.barH);
+ok('boot: start screen hides the top bar', parseFloat(b.barH) === 0 && document_start(b), b);
 
 // --- open the PDF (same path a user takes: file input change) ---
 const b64 = fs.readFileSync(pdfPath).toString('base64');
@@ -151,6 +154,8 @@ const opened = await evaluate(`(async () => {
 const o = JSON.parse(opened);
 ok('open: pages created', o.pages > 1 && String(o.pages) === o.total, o);
 ok('open: player + zoom shown', o.nowBar !== 'none' && o.zoombar !== 'none', o);
+const barAfterOpen = await evaluate(`getComputedStyle(document.documentElement).getPropertyValue('--bar-h')`);
+ok('open: top bar appears and its height is synced', parseFloat(barAfterOpen) > 0, barAfterOpen);
 
 const paintedPages = async () => JSON.parse(await evaluate(`(() => { const out = { visible: 0, blank: 0 };
   for (const w of document.querySelectorAll('.page-wrap')) { const r = w.getBoundingClientRect(); if (r.bottom < 60 || r.top > innerHeight - 200) continue;
@@ -263,6 +268,34 @@ if (steps.includes('settings') || steps.includes('all')) {
   ok('settings: sheet opens, saves, closes; key + continue switch applied', s.opened && s.closedAfterSave && s.dot && s.cont === 'false' && s.keyStored && s.geminiVoices >= 2, s);
 }
 
+if (steps.includes('search') || steps.includes('all')) {
+  const found = JSON.parse(await evaluate(`(async () => {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+    window.scrollTo(0, 0); await wait(600);
+    // a word that really is on the first page: the longest word of the first tappable line
+    const line = [...document.querySelectorAll('.line')].find(b => b.title.trim().split(/\s+/).some(w => w.length > 3));
+    const word = line.title.trim().split(/\s+/).sort((a, b) => b.length - a.length)[0];
+    document.getElementById('searchBtn').click(); await wait(300);
+    const input = document.getElementById('searchInput'); input.value = word; input.dispatchEvent(new Event('input'));
+    await wait(1500);
+    const out = { word, open: !document.getElementById('searchbar').hidden, count: document.getElementById('searchCount').textContent,
+      marked: document.querySelectorAll('.line.found').length };
+    const box = document.querySelector('.line.found'); if (box) { const r = box.getBoundingClientRect(); out.onScreen = r.top >= 0 && r.bottom <= innerHeight; }
+    document.getElementById('searchNext').click(); await wait(600);
+    out.afterNext = document.getElementById('searchCount').textContent;
+    document.getElementById('searchPrev').click(); await wait(600);
+    out.afterPrev = document.getElementById('searchCount').textContent;
+    input.value = 'zzqxjkvv'; input.dispatchEvent(new Event('input')); await wait(1200);
+    out.none = document.getElementById('searchCount').textContent;
+    document.getElementById('searchClose').click(); await wait(200);
+    out.closed = document.getElementById('searchbar').hidden; out.markedAfterClose = document.querySelectorAll('.line.found').length;
+    return JSON.stringify(out); })()`));
+  ok('search: finds a word, marks and shows the hit, steps through hits, reports no match, closes cleanly',
+    found.open && /^1 \/ \d+\+?$/.test(found.count) && found.marked === 1 && found.onScreen && /^\d+ \/ \d+/.test(found.afterNext) &&
+    found.afterPrev === found.count && found.none === 'No match' && found.closed && found.markedAfterClose === 0, found);
+  await shot('search');
+}
+
 if ((steps.includes('docx') || steps.includes('all')) && process.env.DOCX) {
   const docxB64 = fs.readFileSync(process.env.DOCX).toString('base64');
   const opened = JSON.parse(await evaluate(`(async () => {
@@ -298,6 +331,17 @@ if ((steps.includes('docx') || steps.includes('all')) && process.env.DOCX) {
     return JSON.stringify(out); })()`));
   ok('docx: tapping a sentence reads exactly that sentence and highlights it', tap.playing && tap.nowText === 'संविधान सर्वोच्च विधि है।' && JSON.stringify(tap.highlighted) === JSON.stringify(['संविधान सर्वोच्च विधि है।']), tap);
   ok('docx: pause and stop work, highlight removed', tap.pausedPlaying === false && tap.afterStop === false, tap);
+
+  const docxSearch = JSON.parse(await evaluate(`(async () => {
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+    document.getElementById('searchBtn').click(); await wait(300);
+    const input = document.getElementById('searchInput'); input.value = 'संविधान'; input.dispatchEvent(new Event('input')); await wait(1200);
+    const hl = window.CSS && CSS.highlights && CSS.highlights.get('found');
+    const out = { count: document.getElementById('searchCount').textContent, highlighted: hl ? [...hl].map(r => r.toString()) : null };
+    document.getElementById('searchClose').click(); await wait(200);
+    out.cleared = window.CSS && CSS.highlights ? !CSS.highlights.has('found') : null;
+    return JSON.stringify(out); })()`));
+  ok('docx: search finds sentences and highlights the hit, closing clears it', /^1 \/ \d+/.test(docxSearch.count) && docxSearch.highlighted && docxSearch.highlighted.length === 1 && /संविधान/.test(docxSearch.highlighted[0]) && docxSearch.cleared === true, docxSearch);
 
   const view = JSON.parse(await evaluate(`(async () => {
     const wait = (ms) => new Promise(r => setTimeout(r, ms)); const sec = () => document.querySelector('.docx-section');

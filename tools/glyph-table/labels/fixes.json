@@ -1,0 +1,25 @@
+{
+ "_comment": "Hand-read corrections: { font: { glyphId: text } } for fonts that are not in a reference file. The advance width is read from the PDF's copy of the font.  is the i-matra placeholder (see js/text/lost-glyphs.js). Poppins-SemiBold is the title font of the UPSC Wallah books; Baloo2-SemiBold 1581 is the empty zero-width glyph the font places after an i-matra+reph glyph (the PDF's text map gives it the whole syllable, which would duplicate letters).",
+ "fonts": {
+  "Poppins-SemiBold": {
+   "43": "ज",
+   "149": "क्र",
+   "169": "प्र",
+   "170": "फ्र",
+   "173": "म्र",
+   "393": "द्य",
+   "394": "द्व",
+   "582": "स्थ",
+   "621": "ों",
+   "636": "",
+   "637": "",
+   "638": "",
+   "639": "",
+   "640": "",
+   "641": ""
+  },
+  "Baloo2-SemiBold": {
+   "1581": ""
+  }
+ }
+}

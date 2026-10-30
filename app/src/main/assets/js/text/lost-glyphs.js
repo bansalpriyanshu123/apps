@@ -6,19 +6,22 @@
 //   reph     a lone र् mark, drawn after its syllable          -> goes before the cluster that precedes
 //   reph+ii  one glyph that is both the र् mark and a ी        -> र् before the preceding cluster, ी after it
 //   reph+o   one glyph that is both the र् mark and a ो        -> र् before, ो after (ों at the end of a word)
+//   i+reph   one glyph that is both a ि and a र् mark, drawn    -> र् before the cluster that follows, ि after it
+//            before its consonant (the "ि with a hat" of कर्ति)
 // js/services/glyph-kinds.js works out the kind of every NUL from the page's drawing instructions; this module only
 // does the (pure, unit-tested) text surgery. Unresolved placeholders are private-use characters so they can travel
 // through line building and be resolved once the whole line is known.
 
 import { CLUSTER, I_MATRA, II_MATRA, O_MATRA, ON_MATRA, RA, SIGNS, VIRAMA } from './devanagari-chars.js';
 
-export const KIND = { I: 'i', REPH: 'reph', REPH_II: 'reph+ii', REPH_O: 'reph+o' };
+export const KIND = { I: 'i', REPH: 'reph', REPH_II: 'reph+ii', REPH_O: 'reph+o', I_REPH: 'i+reph' };
 
 const MARK = {
   [KIND.I]: String.fromCharCode(0xE010),
   [KIND.REPH]: String.fromCharCode(0xE011),
   [KIND.REPH_II]: String.fromCharCode(0xE012),
-  [KIND.REPH_O]: String.fromCharCode(0xE013)
+  [KIND.REPH_O]: String.fromCharCode(0xE013),
+  [KIND.I_REPH]: String.fromCharCode(0xE015)
 };
 const O_FINAL = String.fromCharCode(0xE014);     // ो or ों, decided by whether the word ends here
 const ALL_MARKS = Object.values(MARK).concat(O_FINAL);
@@ -34,7 +37,7 @@ export const screenOrderIMatra = () => MARK[KIND.I];
 export const isMarkerOnly = (text) => text.length > 0 && [...text].every((ch) => ALL_MARKS.includes(ch));
 
 /** Is this lost glyph attached to what comes before it (reph) or to what comes after it (ि)? */
-export const attachesForward = (text) => text.length > 0 && [...text].every((ch) => ch === MARK[KIND.I]);
+export const attachesForward = (text) => text.length > 0 && [...text].every((ch) => ch === MARK[KIND.I] || ch === MARK[KIND.I_REPH]);
 
 /**
  * Replaces each NUL in `str` with the placeholder of its kind.
@@ -60,6 +63,8 @@ export function resolveLostGlyphs(text) {
   out = out.replace(new RegExp('(' + CLUSTER + ')(' + SIGNS + '*)' + MARK[KIND.REPH], 'g'), RA + VIRAMA + '$1$2');
   out = out.replace(new RegExp('(' + CLUSTER + ')' + MARK[KIND.REPH_II], 'g'), RA + VIRAMA + '$1' + II_MATRA);
   out = out.replace(new RegExp('(' + CLUSTER + ')' + MARK[KIND.REPH_O], 'g'), RA + VIRAMA + '$1' + O_FINAL);
+  // ि + र् in one glyph, drawn before its consonant: र् goes before the cluster, ि after it
+  out = out.replace(new RegExp(MARK[KIND.I_REPH] + '(' + CLUSTER + ')', 'g'), RA + VIRAMA + '$1' + I_MATRA);
   // ि drawn before its consonant: it belongs after the whole cluster
   out = out.replace(new RegExp(MARK[KIND.I] + '(' + CLUSTER + ')', 'g'), '$1' + I_MATRA);
 

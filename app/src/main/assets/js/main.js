@@ -3,12 +3,14 @@
 
 import { initKeyboard } from './app/keyboard.js';
 import { initOpenFile } from './app/open-file.js';
+import { initSearch } from './search/search-bar.js';
 import { initPageText } from './document/page-text.js';
 import { initControls } from './player/controls.js';
 import { initPlayback } from './player/playback.js';
 import { initVoices } from './player/voices.js';
 import { loadPdfEngine } from './services/pdf-engine.js';
 import { initSettingsPanel } from './settings/settings-panel.js';
+import { initHaptics } from './ui/haptics.js';
 import { initHeader } from './ui/header.js';
 import { setNotice } from './ui/notice.js';
 import { initTheme } from './ui/theme.js';
@@ -20,6 +22,7 @@ import { initZoom } from './viewer/zoom.js';
 import { initDocxView } from './viewer/docx-view.js';
 
 initHeader();
+initHaptics();
 initTheme();
 initZoom();
 initPager();
@@ -32,6 +35,7 @@ initVoices();
 initControls();
 initPlayback();
 initSettingsPanel();
+initSearch();
 initOpenFile();
 initKeyboard();
 

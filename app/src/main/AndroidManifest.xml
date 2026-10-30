@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- A short tick when a button is pressed (js/ui/haptics.js). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <!-- Lets the app see installed text-to-speech engines on Android 11+. -->
     <queries>
         <intent>

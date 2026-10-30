@@ -13,7 +13,7 @@ export function layoutLines(pg) {
 
   pg.lines.forEach((line, index) => {
     const box = document.createElement('div');
-    box.className = 'line' + (highlighted.includes(index) ? ' active' : '');
+    box.className = 'line' + (highlighted.includes(index) ? ' active' : '') + (pg.foundLine === index ? ' found' : '');
     box.setAttribute('role', 'button');
     box.setAttribute('tabindex', '0');
     box.title = line.text;

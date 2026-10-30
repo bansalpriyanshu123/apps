@@ -56,6 +56,7 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for the full module map and design rules.
 | `app/src/main/assets/pdfjs/`, `.../mammoth/` | pdf.js (PDF) and mammoth.js (Word), downloaded by `fetch-pdfjs.sh` / `.bat` and by CI so the app works offline. |
 | `app/src/main/java/.../MainActivity.kt` and friends | The thin Android shell: asset server, file picker, text-to-speech bridge, foreground service. |
 | `web-tests/` | Unit tests for the text logic (`npm test`) and an end-to-end check of the whole app. |
+| `tools/glyph-table/` | Builds the table of what the glyphs of known fonts really are (for PDFs with a wrong text map). |
 | `.github/workflows/main.yml` | Runs the unit tests, then builds the APK on GitHub's servers (Gradle 8.7, JDK 17). |
 
 Build note: this repo has no Gradle wrapper. CI pins Gradle 8.7; Android Studio manages its own. If you build

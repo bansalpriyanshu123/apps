@@ -65,3 +65,59 @@ test('parseOcr reads fenced JSON, normalises boxes and tolerates missing boxes',
   assert.throws(() => parseOcr('not json'), /valid JSON/);
   assert.throws(() => parseOcr('{"a":1}'), /list of lines|valid JSON/);
 });
+
+const identity = (viewport, item) => item;
+const item = (str, x, y, width) => ({ str, width, transform: [10, 0, 0, 10, x, y] });
+const page = (items) => groupLines({
+  items, viewport: { transform: [1, 0, 0, 1, 0, 0], scale: 1, width: 400 }, transform: identity, visualOrder: false
+}).map((l) => l.text);
+
+test('groupLines keeps two columns apart: left column first, no line mixes text from both', () => {
+  const rows = [0, 1, 2, 3, 4, 5, 6];
+  const items = [item('मुख्य शीर्षक', 100, 10, 300)];                              // full-width title above the columns
+  rows.forEach((n) => {
+    items.push(item('बायाँ ' + n, 10, 40 + n * 20, 150));
+    items.push(item('दायाँ ' + n, 173, 40 + n * 20 + (n % 2), 150));                // gutter of only 13px, baselines a pixel off
+  });
+  const expected = ['मुख्य शीर्षक', ...rows.map((n) => 'बायाँ ' + n), ...rows.map((n) => 'दायाँ ' + n)];
+  assert.deepEqual(page(items), expected);
+});
+
+test('groupLines does not split a row for a wide word space, a label before text, or justified text', () => {
+  const items = [];
+  // justified text: the wide space lands at a different x in every row
+  [0, 1, 2, 3, 4, 5, 6].forEach((n) => {
+    const first = 40 + (n * 37) % 60;
+    items.push(item('पहला' + n, 10, 20 + n * 20, first), item('दूसरा' + n, 10 + first + 20, 20 + n * 20, 60));
+  });
+  // a label with a gap before its text, over a few rows only
+  items.push(item('लेबल:', 10, 200, 40), item('पाठ यहाँ', 100, 200, 60), item('लेबल दो:', 10, 220, 40), item('पाठ दो', 100, 220, 60));
+  const lines = page(items);
+  assert.equal(lines.length, 9);
+  assert.ok(lines.every((text, i) => i >= 7 || text.includes('पहला') && text.includes('दूसरा')), lines.join(' | '));
+  assert.deepEqual(lines.slice(7), ['लेबल: पाठ यहाँ', 'लेबल दो: पाठ दो']);
+});
+
+test('a line that starts with a vowel sign continues the word of the line before it', () => {
+  const lines = [line('यह व्य', 0), line('ापार है।', 20)];
+  const sentences = buildSentences(lines);
+  assert.equal(sentences[0].text, 'यह व्यापार है।');
+  assert.equal(sentenceText(lines, sentences[0]), 'यह व्यापार है।');
+});
+
+test('groupLines on pages with real space glyphs adds no space from chunk gaps, except for very wide ones (table columns)', () => {
+  const exact = (str, x, width) => ({ str, width, transform: [10, 0, 0, 10, x, 20], exactSpaces: true });
+  const text = (items) => groupLines({ items, viewport: { transform: [1, 0, 0, 1, 0, 0], scale: 1, width: 400 }, transform: (v, i) => i, visualOrder: false })[0].text;
+  assert.equal(text([exact('सं', 10, 15), exact('रचना', 33, 30)]), 'संरचना');                 // 8 units apart: a drawing artefact
+  assert.equal(text([exact('वर्ष', 10, 30), exact('देश', 120, 25)]), 'वर्ष देश');              // 80 units apart: another column
+  assert.equal(text([exact('महत्त्वपूर्ण', 10, 60), exact(' सामाजिक', 71, 40)]), 'महत्त्वपूर्ण सामाजिक');   // a real space glyph
+});
+
+test('a bullet is separated from its text even on pages with real space glyphs', () => {
+  const exact = (str, x, width) => ({ str, width, transform: [10, 0, 0, 10, x, 20], exactSpaces: true });
+  const lines = groupLines({
+    items: [exact('•', 10, 5), exact('बढ़ती', 15, 30)], viewport: { transform: [1, 0, 0, 1, 0, 0], scale: 1, width: 400 },
+    transform: (v, i) => i, visualOrder: false
+  });
+  assert.equal(lines[0].text, '• बढ़ती');
+});

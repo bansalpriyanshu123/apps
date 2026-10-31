@@ -121,3 +121,31 @@ test('a bullet is separated from its text even on pages with real space glyphs',
   });
   assert.equal(lines[0].text, '• बढ़ती');
 });
+
+test('reading order of a page with columns, a figure made of boxes, and columns again', () => {
+  const items = [];
+  const col = (prefix, x, from, count, y0) => { for (let n = 0; n < count; n++) items.push(item(prefix + (from + n), x, y0 + n * 20, 150)); };
+  col('L', 10, 1, 6, 20);          // left column
+  col('R', 173, 1, 6, 20);         // right column
+  ['A', 'B', 'C'].forEach((box, b) => { for (let n = 1; n <= 4; n++) items.push(item(box + n, 10 + b * 110, 160 + n * 20, 80)); });   // a figure of three boxes
+  col('L', 10, 7, 5, 300);         // columns again
+  col('R', 173, 7, 5, 300);
+  const expected = [
+    ...[1, 2, 3, 4, 5, 6].map((n) => 'L' + n), ...[1, 2, 3, 4, 5, 6].map((n) => 'R' + n),
+    'A1', 'A2', 'A3', 'A4', 'B1', 'B2', 'B3', 'B4', 'C1', 'C2', 'C3', 'C4',
+    ...[7, 8, 9, 10, 11].map((n) => 'L' + n), ...[7, 8, 9, 10, 11].map((n) => 'R' + n)
+  ];
+  assert.deepEqual(page(items), expected);
+});
+
+test('a small caption squeezed between two columns does not stop the columns being read one after the other', () => {
+  const items = [];
+  for (let n = 0; n < 24; n++) { items.push(item('बायाँ ' + n, 10, 20 + n * 20, 150)); items.push(item('दायाँ ' + n, 173, 20 + n * 20, 150)); }
+  items.push(item('कैप्शन', 130, 233, 60));                     // 60 wide, reaches over the 13-unit gutter on both sides
+  const lines = page(items);
+  assert.equal(lines.indexOf('बायाँ 23') < lines.indexOf('दायाँ 0'), true, lines.join(' | '));
+});
+
+test('a single line is never cut into columns, however wide its word gaps', () => {
+  assert.deepEqual(page([item('पहला', 10, 20, 60), item('दूसरा', 200, 20, 60)]), ['पहला दूसरा']);
+});

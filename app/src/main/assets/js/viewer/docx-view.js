@@ -37,16 +37,32 @@ function rangeFor(map, start, end) {
   return range;
 }
 
+/**
+ * The number of a point in an automatically numbered Word list (<ol><li>) is not part of the text, so it would not be read
+ * out. It is added to the first sentence of the point ("2. ..."); typed numbers are already in the text.
+ */
+function listPrefix(block) {
+  const item = block.closest('li');
+  const list = item && item.parentElement;
+  if (!list || list.tagName !== 'OL') return '';
+  const leaves = [...item.querySelectorAll(BLOCK_SELECTOR)].filter((node) => !node.querySelector(BLOCK_SELECTOR));
+  if (block !== item && block !== leaves[0]) return '';
+  if (/^\s*[(\[]?[0-9०-९]{1,3}[.)\]]/.test(item.textContent)) return '';
+  const items = [...list.children].filter((child) => child.tagName === 'LI');
+  return (parseInt(list.getAttribute('start') || '1', 10) + items.indexOf(item)) + '. ';
+}
+
 /** Cuts a section's text into sentences; fills pg.lines / pg.segs (one entry per sentence, each with its Range). */
 function indexSentences(pg, section) {
   const leafBlocks = [...section.querySelectorAll(BLOCK_SELECTOR)].filter((block) => !block.querySelector(BLOCK_SELECTOR));
   const lines = [];
   for (const block of leafBlocks) {
     const map = textNodeMap(block);
-    for (const part of splitSentences(block.textContent)) {
+    const prefix = listPrefix(block);
+    splitSentences(block.textContent).forEach((part, n) => {
       const range = rangeFor(map, part.start, part.end);
-      if (range) lines.push({ text: part.text, source: 'docx', range, seg: lines.length });
-    }
+      if (range) lines.push({ text: (n === 0 ? prefix : '') + part.text, source: 'docx', range, seg: lines.length });
+    });
   }
   pg.lines = lines;
   pg.segs = lines.map((line, index) => ({ text: line.text, lines: [index] }));

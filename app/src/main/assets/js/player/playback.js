@@ -11,6 +11,7 @@ import { LAST } from '../core/config.js';
 import { hasKey, settings } from '../core/store.js';
 import { deviceTts, newJob, cancelJob, stopAudio, speakText, prefetchGemini } from '../services/speech.js';
 import { ensureText } from '../document/page-text.js';
+import { forSpeech } from '../text/speech-text.js';
 import { sentenceText } from '../text/sentences.js';
 import { clearHighlight, showHighlight } from '../viewer/highlight.js';
 import { refreshBanner } from '../ui/banner.js';
@@ -116,11 +117,11 @@ export async function speakSentence(p, s, auto, fromIdx) {
 
   const voice = selectedVoice();
   const job = newJob(() => sentenceEnded(position, myToken), (message) => speechFailed(message, myToken));
-  speakText(sentenceText(pg.lines, pg.segs[position.s], from), voice, state.rate, job, auto);
+  speakText(forSpeech(sentenceText(pg.lines, pg.segs[position.s], from)), voice, state.rate, job, auto);
   if (voice && voice.gemini && state.cont) {
     for (let k = 1; k <= 2; k++) {
       const next = pg.segs[position.s + k];
-      if (next) prefetchGemini(next.text, voice);
+      if (next) prefetchGemini(forSpeech(next.text), voice);
     }
   }
   queueAhead(position, voice, myToken);
@@ -163,7 +164,7 @@ function queueAhead(position, voice, myToken) {
   const queued = { p: position.p, s: position.s + 1, job: null };
   queued.job = { cancelled: false, onend: () => sentenceEnded(queued, myToken), onerror: (message) => speechFailed(message, myToken) };
   ahead = queued;
-  speakText(sentenceText(pg.lines, next), voice, state.rate, queued.job, true);
+  speakText(forSpeech(sentenceText(pg.lines, next)), voice, state.rate, queued.job, true);
 }
 
 function endPlayback() {

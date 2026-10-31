@@ -32,7 +32,7 @@ folder under `app/src/main/assets/js/`.
 | | `search/` | Search bar: finds a phrase on every page (reads each page's text in the background), jumps between hits, marks the hit (`viewer/found-mark`) and lets ▶ read from it. | document, viewer, text, core |
 | Document | `document/` | `page-model` (a page record), `page-text` (which lines a page uses: PDF text or Gemini). **No DOM.** | services, text, ui/banner+notice, core |
 | Services | `services/` | Talking to the outside world: pdf.js, mammoth (Word), Gemini (text, OCR, voices), device speech, `page-glyphs` (the glyphs a page draws, with what the glyph table says they are), `glyph-kinds` (what each lost glyph on a page really is). | text, core |
-| Text logic | `text/` | **Pure functions** (no DOM, no state, unit-tested): `devanagari` (repair rules, garbled-text detection, spacing), `lost-glyphs` (putting back र् / ि / ी / ो once their kind is known), `glyph-table` + generated `glyph-table-data` (what the glyphs of known fonts really are), `devanagari-chars`, `line-grouping`, `sentences` (PDF lines -> sentences), `sentence-split` (Word text -> sentences), `ocr-parse`. | – |
+| Text logic | `text/` | **Pure functions** (no DOM, no state, unit-tested): `devanagari` (repair rules, garbled-text detection, spacing), `lost-glyphs` (putting back र् / ि / ी / ो once their kind is known), `glyph-table` + generated `glyph-table-data` (what the glyphs of known fonts really are), `devanagari-chars`, `line-grouping`, `layout-order` (reading order: columns, figures, paragraphs), `sentences` (PDF lines -> sentences), `sentence-split` (Word text -> sentences), `speech-text` (what is said differs from what is shown: उदा -> उदाहरण, Ex. -> example), `ocr-parse`. | – |
 | UI leaves | `ui/` | Small shared views: `notice`, `banner`, `theme`, `header`, `haptics` (a short tick on button presses). | core |
 | Core | `core/` | `config` (constants), `state` (the one shared state object), `store` (preferences), `ocr-cache` (IndexedDB), `bus` (events), `dom` (element lookup), `util`. | – |
 
@@ -50,6 +50,14 @@ Lower layers must not know about higher ones, so they announce things on `core/b
 | `theme:dark` | `ui/theme` | `viewer/renderer` (redraw pages inverted) |
 | `voice:changed` | `player/voices` | `player/playback` (restart the sentence) |
 | `player:pause` | `services/device-tts` (Android notification) | `player/playback` |
+
+### Reading order of a PDF page
+`text/layout-order.js` is a recursive "XY cut": split the page at the widest empty vertical corridor that runs through the
+whole region (a column gutter), left part first; if there is none, at the widest empty horizontal band, upper part first;
+repeat. A region needs four lines before it can be split into columns, so a single line is never cut; a wide chunk that
+spans a gutter (a title) is cut around first, a small caption squeezed between columns is tolerated, and in long regions a
+couple of chunks whose pdf.js width is too long may poke into the gutter. Limits: a table is read column by column, and a
+figure with fewer than four lines per box is read across.
 
 ### Look and touch
 `css/theme.css` holds the tokens (light / dark colours, radii, shadows) and the one button system: every control is at
@@ -107,7 +115,9 @@ what each glyph of a known font really is, keyed by font name + glyph id (+ adva
 of the font). Every glyph the page draws comes from its drawing instructions; `correctItems` rebuilds the text items
 from them, then the usual line building runs. ि glyphs and reph glyphs are put in as placeholders (U+E010, U+E011, U+E015)
 so `text/lost-glyphs.js` moves them to where they belong in the word. If the items cannot be matched up with the glyphs,
-the page is left exactly as pdf.js made it. Where a PDF's words are separated by real space glyphs, spaces pdf.js
+the page is left exactly as pdf.js made it. The same glyph list fixes a pdf.js quirk: it sometimes ends a line's item with the
+first glyph(s) of the next line ("...आलोचनात्मक दृ" / "ष्टि से..."); glyphs that come from the drawing instruction the next
+item continues, on another line, are moved over (`moveStrayGlyphs`). Where a PDF's words are separated by real space glyphs, spaces pdf.js
 invents between far-apart glyphs are dropped and a gap between chunks adds none (a very wide gap still does: table columns).
 How the table is made (`tools/glyph-table/README.md`): fonts that are open-licence files (Baloo 2) are matched glyph by
 glyph by outline and read off the real font with HarfBuzz (exact); the Microsoft Devanagari fonts (Kokila, Utsaah) share

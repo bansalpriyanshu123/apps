@@ -18,7 +18,9 @@ async function describeFont(page, fontId) {
   return font ? { name: font.name, composite: !!font.composite } : { name: '', composite: false };   // composite: Type0, glyph id == character code
 }
 
-/** @returns [{ unicode, text, fontId, glyph }] for every glyph of the page (cached per page) */
+/** @returns [{ unicode, text, fontId, glyph, run, size, charSpacing, adjust }] for every glyph (`run`: which drawing instruction
+ *  showed it; `adjust`: the kerning numbers after it, in thousandths of an em) */
+// (cached per page)
 export function readPageGlyphs(page) {
   if (!cache.has(page)) cache.set(page, collect(page));
   return cache.get(page);
@@ -34,15 +36,21 @@ async function collect(page) {
   }
   const glyphs = [];
   let fontId = null;
+  let size = 1;
+  let charSpacing = 0;
   for (let i = 0; i < ops.fnArray.length; i++) {
     const fn = ops.fnArray[i];
-    if (fn === OPS.setFont) { fontId = ops.argsArray[i][0]; continue; }
+    if (fn === OPS.setFont) { fontId = ops.argsArray[i][0]; size = ops.argsArray[i][1] || 1; continue; }
+    if (fn === OPS.setCharSpacing) { charSpacing = ops.argsArray[i][0] || 0; continue; }
     if (fn !== OPS.showText && fn !== OPS.showSpacedText) continue;
     const font = fonts.get(fontId) || { name: '', composite: false };
     for (const glyph of ops.argsArray[i][0] || []) {
-      if (!glyph || typeof glyph !== 'object') continue;           // numbers are kerning adjustments
+      if (!glyph || typeof glyph !== 'object') {                    // a number is a kerning adjustment (thousandths of an em) after the glyph before it
+        if (typeof glyph === 'number' && glyphs.length) glyphs[glyphs.length - 1].adjust += glyph;
+        continue;
+      }
       const text = font.composite ? lookupGlyph(font.name, glyph.originalCharCode, glyph.width) : null;
-      glyphs.push({ unicode: glyph.unicode || '', text, fontId, glyph });
+      glyphs.push({ unicode: glyph.unicode || '', text, fontId, glyph, run: i, size, charSpacing, adjust: 0 });
     }
   }
   return glyphs;

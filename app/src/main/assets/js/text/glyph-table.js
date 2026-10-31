@@ -35,35 +35,81 @@ export function lookupGlyph(fontName, glyphId, width) {
 export function correctItems(items, glyphs, { dropInsertedSpaces = false } = {}) {
   const textOf = (glyph) => (glyph.text !== null && glyph.text !== undefined ? glyph.text : glyph.unicode);
   let next = 0;
-  const corrected = [];
+  const parts = [];                       // per item: [{ text, glyph }] (glyph -1: a space pdf.js made up or turned into one)
   for (const item of items) {
     const str = item.str;
-    let out = '';
+    const mine = [];
     let i = 0;
     while (i < str.length) {
-      while (next < glyphs.length && glyphs[next].unicode === '') out += textOf(glyphs[next++]);
+      while (next < glyphs.length && glyphs[next].unicode === '') { mine.push({ text: textOf(glyphs[next]), glyph: next }); next++; }
       const glyph = glyphs[next];
       if (glyph && str.startsWith(glyph.unicode, i)) {
-        out += textOf(glyph);
+        mine.push({ text: textOf(glyph), glyph: next });
         i += glyph.unicode.length;
         next++;
       } else if (glyph && BLANK.test(glyph.unicode)) {
         // a space glyph: pdf.js either turned it into a plain space (a tab becomes one) or left it out at the end /
         // start of a line. Either way the word really ends here.
         if (/\s/.test(str[i])) i++;
-        out += ' ';
+        mine.push({ text: ' ', glyph: next });
         next++;
       } else if (str[i] === ' ') {
-        if (!dropInsertedSpaces) out += ' ';
+        if (!dropInsertedSpaces) mine.push({ text: ' ', glyph: -1 });
         i++;
       } else {
         return null;
       }
     }
-    const fixed = out === str ? item : { ...item, str: out };
-    corrected.push(dropInsertedSpaces ? { ...fixed, exactSpaces: true } : fixed);
+    parts.push(mine);
   }
-  return corrected;
+  moveStrayGlyphs(items, parts, glyphs);
+  return items.map((item, n) => {
+    const text = parts[n].map((part) => part.text).join('');
+    const width = drawnWidth(item, parts[n], glyphs);
+    const fixed = text === item.str && width === item.width ? item : { ...item, str: text, width };
+    return dropInsertedSpaces ? { ...fixed, exactSpaces: true } : fixed;
+  });
+}
+
+/**
+ * How wide the item is really drawn. pdf.js's own `width` can be far too small (20% on some PDFs), so the box of a line
+ * built from it ends before the last words. The glyphs' advances (plus character spacing and the kerning numbers) give
+ * the true width; it is only trusted when it is in the neighbourhood of pdf.js's figure.
+ */
+function drawnWidth(item, itemParts, glyphs) {
+  const used = itemParts.filter((part) => part.glyph >= 0).map((part) => glyphs[part.glyph]);
+  while (used.length && BLANK.test(used[used.length - 1].unicode)) used.pop();       // the space after the last word is no ink
+  const scale = Math.abs(item.transform && item.transform[0]);
+  if (!used.length || !scale || !item.width || used.some((glyph) => !glyph.glyph || !glyph.size)) return item.width;
+  const size = used[0].size;
+  let em = 0;                                   // advance in ems
+  for (const glyph of used) em += glyph.glyph.width / 1000 - (glyph.adjust || 0) / 1000 + (glyph.charSpacing || 0) / size;
+  const width = em * scale;
+  return width > item.width * 0.9 && width < item.width * 1.6 ? width : item.width;
+}
+
+/**
+ * pdf.js sometimes puts the first glyph(s) of a new line at the end of the item of the line above ("...आलोचनात्मक दृ" then
+ * "ष्टि से ..."), although they are drawn at the start of the next line. They come from the same drawing instruction as the
+ * start of the next item, which is on another line: move them over.
+ */
+function moveStrayGlyphs(items, parts, glyphs) {
+  const run = (part) => (part.glyph >= 0 ? glyphs[part.glyph].run : undefined);
+  for (let n = 0; n + 1 < items.length; n++) {
+    const here = parts[n];
+    const following = parts[n + 1];
+    const realHere = here.filter((part) => part.glyph >= 0 && run(part) !== undefined);
+    const firstOfNext = following.find((part) => part.glyph >= 0 && run(part) !== undefined);
+    if (!realHere.length || !firstOfNext) continue;
+    const lastRun = run(realHere[realHere.length - 1]);
+    const lineHeight = Math.abs(items[n].height || items[n].transform[3] || 10);
+    const otherLine = Math.abs(items[n].transform[5] - items[n + 1].transform[5]) > lineHeight * 0.5;
+    if (!otherLine || lastRun !== run(firstOfNext) || lastRun === run(realHere[0])) continue;
+    let from = here.length;
+    while (from > 0 && (here[from - 1].glyph < 0 || run(here[from - 1]) === lastRun)) from--;
+    const moved = here.splice(from).filter((part) => part.glyph >= 0);
+    parts[n + 1] = moved.concat(following);
+  }
 }
 
 /** Do the words of this page come with real space glyphs (so every other space pdf.js reports is an artefact)? */

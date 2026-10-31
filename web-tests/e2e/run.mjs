@@ -292,7 +292,8 @@ if (steps.includes('search') || steps.includes('all')) {
     return JSON.stringify(out); })()`));
   ok('search: finds a word, marks and shows the hit, steps through hits, reports no match, closes cleanly',
     found.open && /^1 \/ \d+\+?$/.test(found.count) && found.marked === 1 && found.onScreen && /^\d+ \/ \d+/.test(found.afterNext) &&
-    found.afterPrev === found.count && found.none === 'No match' && found.closed && found.markedAfterClose === 0, found);
+    found.afterPrev.replace('+', '') === found.count.replace('+', '') &&   // (the + only means the background read is not finished)
+     found.none === 'No match' && found.closed && found.markedAfterClose === 0, found);
   await shot('search');
 }
 
@@ -310,6 +311,21 @@ if ((steps.includes('docx') || steps.includes('all')) && process.env.DOCX) {
       heading: (secs[0] && secs[0].querySelector('h1') || {}).textContent, cells: secs[0] ? [...secs[0].querySelectorAll('td')].map(c => c.textContent) : [],
       notice: document.getElementById('notice').textContent, canvases: document.querySelectorAll('.page-wrap canvas').length }); })()`));
   ok('docx: opens as several parts with heading and table', opened.sections >= 2 && String(opened.sections) === opened.total && opened.mode && opened.heading === 'भारतीय राजव्यवस्था (नमूना)' && opened.cells.length === 4 && opened.canvases === 0, opened);
+
+  const spoken = JSON.parse(await evaluate(`(async () => {
+    const { state } = await import('/js/core/state.js'); const { forSpeech } = await import('/js/text/speech-text.js');
+    const all = state.pages.flatMap((pg) => pg.lines.map((l) => l.text));
+    return JSON.stringify({
+      numbered: all.filter((t) => /बिंदु:/.test(t)),
+      udaharan: all.filter((t) => t.startsWith('उदा')).map(forSpeech),
+      example: all.filter((t) => t.startsWith('Ex.')).map(forSpeech),
+      loneNumbers: all.filter((t) => /^\s*[0-9]{1,3}[.)]\s*$/.test(t)).length,
+      typedNumbers: all.filter((t) => /^[0-9]+\. यह परीक्षण/.test(t)).length }); })()`));
+  ok('docx: numbers of an automatically numbered list are spoken ("1. ...", "2. ...")',
+    spoken.numbered.length === 3 && spoken.numbered.every((t, i) => t.startsWith((i + 1) + '. ')), spoken);
+  ok('docx: abbreviations are spoken in full (उदा: -> उदाहरण:, Ex. -> example)',
+    spoken.udaharan[0] && spoken.udaharan[0].startsWith('उदाहरण:') && spoken.example[0] && spoken.example[0].startsWith('example The United States'), spoken);
+  ok('docx: a typed number ("1. ...") stays with its sentence instead of being a sentence of its own', spoken.loneNumbers === 0 && spoken.typedNumbers >= 40, spoken);
 
   const tap = JSON.parse(await evaluate(`(async () => {
     const wait = (ms) => new Promise(r => setTimeout(r, ms));

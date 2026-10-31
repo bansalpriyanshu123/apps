@@ -66,3 +66,24 @@ test('the table maps i-matra glyphs to the placeholder so they end up after thei
   assert.equal(GLYPH_TABLE.Kokila[108][0], '\uE010');
   assert.equal(resolveLostGlyphs('\uE010' + 'व'), 'वि');
 });
+
+test('the first glyph of a new line that pdf.js put at the end of the line above goes back to its own line', () => {
+  const g = (unicode, run) => ({ unicode, text: null, run });
+  // line 1 is drawn by instruction 1; line 2 by instruction 2 and starts with "दृ"; pdf.js ended item 1 with "दृ"
+  const glyphs = [g('आ', 1), g('क', 1), g(' ', 1), g('दृ', 2), g('ि', 2), g('ष', 2)];
+  const items = [
+    { str: 'आक दृ', transform: [10, 0, 0, 10, 0, 100], height: 10 },
+    { str: 'िष', transform: [10, 0, 0, 10, 0, 90], height: 10 }
+  ];
+  assert.deepEqual(correctItems(items, glyphs).map((i) => i.str), ['आक ', 'दृिष']);
+});
+
+test('glyphs of one instruction that pdf.js split into two items on the SAME line stay where they are', () => {
+  const g = (unicode, run) => ({ unicode, text: null, run });
+  const glyphs = [g('अ', 1), g(' ', 1), g('ब', 2), g('स', 2)];
+  const items = [
+    { str: 'अ ब', transform: [10, 0, 0, 10, 0, 100], height: 10 },
+    { str: 'स', transform: [10, 0, 0, 10, 80, 100], height: 10 }
+  ];
+  assert.deepEqual(correctItems(items, glyphs).map((i) => i.str), ['अ ब', 'स']);
+});

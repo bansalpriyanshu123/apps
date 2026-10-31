@@ -2,6 +2,7 @@
 // Pure: the pdf.js matrix helper is passed in, so this runs in Node as well.
 
 import { repairItem, needsSpaceBetween, tidyLineText } from './devanagari.js';
+import { readingGroups } from './layout-order.js';
 import { attachesForward, isMarkerOnly } from './lost-glyphs.js';
 
 /**
@@ -48,142 +49,25 @@ export function groupLines({ items, viewport, transform, visualOrder }) {
     };
   });
   chunks = attachLoneMarkers(chunks);
-  chunks.sort((a, b) => (a.y - b.y) || (a.x - b.x));
 
-  // chunks on (almost) the same baseline belong to one line
-  const rows = [];
-  for (const chunk of chunks) {
-    const row = rows[rows.length - 1];
-    if (row && Math.abs(chunk.y - row.y) < Math.max(row.h, chunk.h) * 0.5) {
-      row.chunks.push(chunk);
-      row.h = Math.max(row.h, chunk.h);
-    } else {
-      rows.push({ y: chunk.y, h: chunk.h, chunks: [chunk] });
-    }
-  }
-
-  return orderRows(rows, findGutters(rows)).map(toLine).filter(Boolean);
-}
-
-// --- columns ----------------------------------------------------------------------------------------------------------
-// A column gutter is a vertical corridor with no text in it for many rows in a row, with text on both sides. Word spaces
-// (even wide ones in justified text) never line up over that many rows, and a short label followed by text does not
-// last long enough, so only real columns qualify.
-
-const MIN_GUTTER_ROWS = 5;      // rows the corridor must stay empty
-const MIN_SIDE_ROWS = 4;        // rows whose text must reach the corridor, on each side of it
-const EDGE_EM = 2.5;            // "reach": within this many line heights of the corridor
-const MIN_GUTTER_EM = 0.9;      // narrowest corridor, in line heights (a bullet and its text are closer than that)
-
-const overlapOf = (a, b) => Math.min(a[1], b[1]) - Math.max(a[0], b[0]);
-
-/** Free x ranges of a row; the two ends are open (`first` marks the leading one so margins can be told apart). */
-const solid = (row) => row.chunks.filter((c) => c.str.trim());       // blank chunks (pdf.js emits spaces) hold no text
-
-function gapsOf(row) {
-  const spans = solid(row).map((c) => [c.x, c.x + c.w]).sort((a, b) => a[0] - b[0]);
-  const gaps = [];
-  let end = -Infinity;
-  for (const [from, to] of spans) {
-    if (from > end) gaps.push([end, from]);
-    end = Math.max(end, to);
-  }
-  gaps.push([end, Infinity]);
-  return gaps;
-}
-
-/** @returns [{ from, to, left, right }]: y range and x corridor of every column gutter on the page */
-function findGutters(rows) {
-  const gutters = [];
-  let active = [];
-  const close = (candidate) => {
-    const run = rows.slice(candidate.first, candidate.last + 1);
-    if (run.length < MIN_GUTTER_ROWS) return;
-    const [left, right] = candidate.range;
-    const em = run.reduce((sum, row) => sum + row.h, 0) / run.length;
-    if (right - left < em * MIN_GUTTER_EM) return;
-    // lines on both sides must reach right up to the corridor; a run of short lines in the middle of a column does not
-    const reach = em * EDGE_EM;
-    const leftRows = run.filter((row) => solid(row).some((c) => c.x + c.w <= left + 1 && c.x + c.w >= left - reach)).length;
-    const rightRows = run.filter((row) => solid(row).some((c) => c.x >= right - 1 && c.x <= right + reach)).length;
-    if (leftRows < MIN_SIDE_ROWS || rightRows < MIN_SIDE_ROWS) return;
-    // rows just above / below the run that do not cross the corridor belong to the columns too (a one-sided first line)
-    const free = (row) => !solid(row).some((c) => overlapOf([c.x, c.x + c.w], [left, right]) > 0);
-    let first = candidate.first;
-    let last = candidate.last;
-    while (first > 0 && free(rows[first - 1])) first--;
-    while (last < rows.length - 1 && free(rows[last + 1])) last++;
-    gutters.push({ from: rows[first].y - rows[first].h, to: rows[last].y, left, right });
-  };
-
-  rows.forEach((row, index) => {
-    const gaps = gapsOf(row);
-    const next = [];
-    for (const candidate of active) {
-      const em = row.h * MIN_GUTTER_EM;
-      const gap = gaps.find((g) => overlapOf(g, candidate.range) >= Math.max(em, 1));
-      if (gap) {
-        candidate.range = [Math.max(gap[0], candidate.range[0]), Math.min(gap[1], candidate.range[1])];
-        candidate.last = index;
-        next.push(candidate);
+  // reading order: columns, figures and paragraphs are separated first (text/layout-order.js); inside each group the
+  // chunks on (almost) the same baseline form one line
+  const pieces = [];
+  for (const group of readingGroups(chunks)) {
+    group.sort((a, b) => (a.y - b.y) || (a.x - b.x));
+    const rows = [];
+    for (const chunk of group) {
+      const row = rows[rows.length - 1];
+      if (row && Math.abs(chunk.y - row.y) < Math.max(row.h, chunk.h) * 0.5) {
+        row.chunks.push(chunk);
+        row.h = Math.max(row.h, chunk.h);
       } else {
-        close(candidate);
+        rows.push({ y: chunk.y, h: chunk.h, chunks: [chunk] });
       }
     }
-    for (const gap of gaps) {          // new corridors can only start between two pieces of text in this row
-      if (!isFinite(gap[0]) || !isFinite(gap[1]) || gap[1] - gap[0] < Math.max(row.h * MIN_GUTTER_EM, 1)) continue;
-      if (next.some((c) => overlapOf(c.range, gap) >= 0.6 * (gap[1] - gap[0]))) continue;
-      next.push({ range: gap, first: index, last: index });
-    }
-    active = next;
-  });
-  active.forEach(close);
-  return gutters;
-}
-
-/** Gutters that overlap in height form one block of columns; the same corridor found twice is kept once. */
-function blocksOf(gutters) {
-  const blocks = [];
-  for (const gutter of [...gutters].sort((a, b) => a.from - b.from)) {
-    const block = blocks.find((b) => gutter.from <= b.to && gutter.to >= b.from);
-    if (!block) { blocks.push({ from: gutter.from, to: gutter.to, corridors: [[gutter.left, gutter.right]] }); continue; }
-    block.from = Math.min(block.from, gutter.from);
-    block.to = Math.max(block.to, gutter.to);
-    const same = block.corridors.find((c) => overlapOf(c, [gutter.left, gutter.right]) > 0);
-    if (same) { same[0] = Math.max(same[0], gutter.left); same[1] = Math.min(same[1], gutter.right); } else block.corridors.push([gutter.left, gutter.right]);
+    for (const row of rows) pieces.push(...piecesOf(row.chunks, row));
   }
-  blocks.forEach((b) => b.corridors.sort((x, y) => x[0] - y[0]));
-  return blocks;
-}
-
-/**
- * Reading order: rows top to bottom; inside a block of columns, the whole first column, then the next one, and so on.
- * A single-column page comes out exactly as it went in.
- */
-function orderRows(rows, gutters) {
-  const blocks = blocksOf(gutters);
-  const ordered = [];
-  let open = null;                                   // { block, columns: [[piece...]] }
-  const flush = () => {
-    if (open) for (const column of open.columns) if (column) ordered.push(...column);
-    open = null;
-  };
-  for (const row of rows) {
-    const block = blocks.find((b) => row.y >= b.from && row.y <= b.to);
-    if (!block) { flush(); ordered.push(...piecesOf(row.chunks, row)); continue; }
-    if (open && open.block !== block) flush();
-    if (!open) open = { block, columns: [] };
-    const byColumn = new Map();
-    for (const chunk of row.chunks) {
-      const centre = chunk.x + chunk.w / 2;
-      const column = block.corridors.filter((c) => (c[0] + c[1]) / 2 < centre).length;
-      if (!byColumn.has(column)) byColumn.set(column, []);
-      byColumn.get(column).push(chunk);
-    }
-    for (const [column, chunks] of byColumn) (open.columns[column] ||= []).push(...piecesOf(chunks, row));
-  }
-  flush();
-  return ordered;
+  return pieces.map(toLine).filter(Boolean);
 }
 
 const EXACT_GAP_EM = 3;

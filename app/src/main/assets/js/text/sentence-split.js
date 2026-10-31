@@ -9,6 +9,8 @@ const MAX_SENTENCE_CHARS = 280;
 // Danda / double danda / ? / ! end a sentence wherever they are followed by space or the end; a full stop only when the
 // next word does not start in lower case or with a digit ("4.2", "e.g. text", "डॉ. शर्मा" stay together).
 const HARD_END = /[।॥?!]["'”’)\]]*(?=\s|$)/g;
+const LEADING_NUMBER = /^\s*[(\[]?(?:[0-9]{1,3}|[०-९]{1,3})[.)\]]\s+/;
+const ABBREVIATION = /(?:^|[\s(\[])(?:उदा|डॉ|प्रो|ex|eg|e\.g|i\.e|vs|viz|approx|dr|mr|mrs)\.[\"'\u201D\u2019)\]]*$/i;
 const FULL_STOP = /\.["'”’)\]]*(?=\s+[^\sa-z0-9]|\s*$)/g;
 
 /**
@@ -21,6 +23,11 @@ export function splitSentences(source, maxChars = MAX_SENTENCE_CHARS) {
     let match;
     while ((match = pattern.exec(source)) !== null) cuts.add(match.index + match[0].length);
   }
+  // the number of a numbered point ("1. ", "(2) ", "३. ") belongs to the point, it is not a sentence of its own
+  const lead = LEADING_NUMBER.exec(source);
+  if (lead) for (const cut of [...cuts]) if (cut <= lead[0].length && cut < source.length) cuts.delete(cut);
+  // an abbreviation's full stop ("उदा. ...", "e.g. ...", "डॉ. शर्मा") does not end a sentence
+  for (const cut of [...cuts]) if (cut < source.length && ABBREVIATION.test(source.slice(0, cut))) cuts.delete(cut);
   const ordered = [...cuts].sort((a, b) => a - b);
 
   const sentences = [];
